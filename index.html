@@ -1,0 +1,1866 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Budget Tracker</title>
+<meta name="description" content="Personal budget, work schedule and money planner. Data stays on your device.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f3f3f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  :root {
+    color-scheme: light;
+    --bg:#f3f3f0; --card:#fcfcfb; --text:#0b0b0b; --muted:#52514e; --axis:#898781;
+    --grid:#e1e0d9; --base:#c3c2b7; --line:rgba(11,11,11,.10);
+    --inc:#006300; --exp:#c0392f; --accent:#2a78d6;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+    --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948; --other:#a3a29b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg:#0d0d0d; --card:#1a1a19; --text:#f0efec; --muted:#c3c2b7; --axis:#898781;
+      --grid:#2c2c2a; --base:#383835; --line:rgba(255,255,255,.10);
+      --inc:#0ca30c; --exp:#e66767; --accent:#3987e5;
+      --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+      --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767; --other:#6b6a65;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width:1080px; margin:0 auto; padding:calc(20px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(56px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); }
+  .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:21px; margin:0; }
+  h2 { font-size:13px; margin:0 0 12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  h3 { font-size:15px; margin:0; }
+  nav.tabs { display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:3px; }
+  nav.tabs button { border:none; background:none; padding:7px 14px; border-radius:7px; color:var(--muted); font-weight:600; white-space:nowrap; }
+  @media (max-width:640px) { nav.tabs { width:100%; overflow-x:auto; } nav.tabs button { padding:7px 10px; flex:1 0 auto; } }
+  nav.tabs button[aria-selected=true] { background:var(--accent); color:#fff; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; min-width:0; }
+  .grid { display:grid; gap:16px; margin-top:16px; }
+  .three { grid-template-columns:repeat(3,1fr); }
+  .five { grid-template-columns:repeat(5,1fr); }
+  .two { grid-template-columns:1fr 1fr; }
+  @media (max-width:820px) { .five { grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:720px) { .three,.two { grid-template-columns:1fr; } }
+  .stat .label { color:var(--muted); font-size:13px; }
+  .stat .value { font-size:23px; font-weight:700; }
+  .inc { color:var(--inc); } .exp { color:var(--exp); } .muted { color:var(--muted); } .small { font-size:12px; }
+  input, select, button, .btn { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:7px; padding:7px 10px; }
+  button, .btn { cursor:pointer; text-decoration:none; display:inline-block; }
+  .btn.primary, button.primary { background:var(--accent); color:#fff; border:none; font-weight:600; }
+  form.entry { display:grid; gap:10px; }
+  .row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+  label > input, label > select { width:100%; min-width:0; }
+  label { font-size:13px; color:var(--muted); display:grid; gap:4px; }
+  .toggle { display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--line); border-radius:7px; overflow:hidden; }
+  .toggle label { display:block; }
+  .toggle input { display:none; }
+  .toggle span { display:block; text-align:center; padding:8px; cursor:pointer; color:var(--text); font-size:15px; }
+  .toggle input:checked + span { background:var(--accent); color:#fff; font-weight:600; }
+  .monthnav { display:flex; gap:6px; align-items:center; }
+  .bar-row { display:grid; grid-template-columns:120px 1fr 90px; gap:8px; align-items:center; margin:6px 0; font-size:14px; }
+  .bar { height:10px; background:var(--s1); border-radius:0 4px 4px 0; min-width:2px; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:7px 6px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; }
+  td.num, th.num { text-align:right; }
+  td.actions { text-align:right; white-space:nowrap; }
+  tr.editing input, tr.editing select { width:100%; padding:5px 6px; font-size:14px; }
+  tr.editing td:nth-child(2) { display:flex; gap:4px; }
+  .icon { border:none; background:none; color:var(--muted); padding:3px 7px; font-size:13px; }
+  .icon:hover { color:var(--text); background:var(--bg); }
+  .pill { font-size:11px; font-weight:600; padding:1px 6px; border-radius:9px; border:1px solid var(--line); color:var(--muted); margin-right:4px; }
+  .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .filters input { flex:1; min-width:160px; }
+  .empty { color:var(--muted); font-style:italic; }
+  .err { color:var(--exp); font-size:13px; min-height:1em; }
+  .controls { display:flex; gap:8px; flex-wrap:wrap; align-items:end; justify-content:space-between; margin-top:16px; }
+  .controls .group { display:flex; gap:6px; flex-wrap:wrap; align-items:end; }
+  .chip[aria-pressed=true] { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  #dash { grid-template-columns:1fr 1fr; }
+  #dash .full { grid-column:1 / -1; }
+  @media (max-width:820px) { #dash { grid-template-columns:1fr; } }
+  .w-head { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .w-tools { display:flex; gap:2px; flex-shrink:0; }
+  .w-sub { margin:2px 0 10px; color:var(--muted); font-size:12px; }
+  .w-body { position:relative; min-height:60px; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .legend i, .tt-row i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  svg.chart { display:block; overflow:visible; }
+  svg .tick { fill:var(--axis); font-size:11px; font-variant-numeric:tabular-nums; }
+  svg .lbl { fill:var(--muted); font-size:12px; }
+  svg .val { fill:var(--text); font-size:12px; font-variant-numeric:tabular-nums; }
+  svg .gridline { stroke:var(--grid); stroke-width:1; }
+  svg .baseline { stroke:var(--base); stroke-width:1; }
+  svg .hit { fill:transparent; }
+  svg .col .guide { stroke:var(--axis); stroke-width:1; stroke-dasharray:3 3; opacity:0; }
+  svg .col:hover .guide { opacity:1; }
+  svg .seg:hover, svg .hrow:hover .hbar { opacity:.82; }
+  .donut-wrap { display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
+  .legend-list { list-style:none; margin:0; padding:0; font-size:13px; flex:1; min-width:160px; }
+  .legend-list li { display:flex; gap:8px; align-items:center; padding:3px 0; }
+  .legend-list li span:nth-child(2) { flex:1; }
+  .legend-list i { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+  #tooltip { position:fixed; pointer-events:none; z-index:10; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:13px; box-shadow:0 4px 18px rgba(0,0,0,.15); min-width:140px; }
+  .tt-row { display:flex; align-items:center; gap:4px; margin-top:3px; }
+  .tt-row span { margin-left:auto; padding-left:12px; font-variant-numeric:tabular-nums; font-weight:600; }
+  dialog { border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--text); padding:20px; width:min(520px, calc(100vw - 32px)); }
+  dialog::backdrop { background:rgba(0,0,0,.4); }
+  dialog form { display:grid; gap:12px; }
+  .catbox { display:flex; flex-wrap:wrap; gap:6px 14px; max-height:160px; overflow:auto; padding:8px; border:1px solid var(--line); border-radius:7px; }
+  .chk { display:flex; gap:5px; align-items:center; color:var(--text); font-size:14px; }
+  .chk input { width:auto; }
+  .dlg-actions { display:flex; justify-content:flex-end; gap:8px; }
+  .cat-list { list-style:none; margin:0 0 12px; padding:0; }
+  .cat-list li { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--line); }
+  .cat-list li span:first-child { flex:1; }
+  .add-cat { display:flex; gap:8px; } .add-cat input { flex:1; }
+  .stack > * + * { margin-top:12px; }
+  code { background:var(--bg); padding:1px 5px; border-radius:4px; font-size:13px; }
+  [hidden] { display:none !important; }
+  .copybar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px 12px; margin-bottom:8px; border:1px solid var(--accent); border-radius:8px; font-size:14px; }
+  .copybar #selCount { font-weight:600; margin-right:4px; }
+  .copy-to { display:inline-flex; align-items:center; gap:6px; margin-left:auto; }
+  #selToggle[aria-pressed=true] { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  #list .sel { width:18px; height:18px; margin:0 8px 0 0; vertical-align:-3px; accent-color:var(--accent); }
+  #list tr.picked { background:color-mix(in srgb, var(--accent) 10%, transparent); }
+  .selecting #list tr[data-id] { cursor:pointer; user-select:none; }
+  .selecting #list td.actions button { visibility:hidden; }
+
+  /* phones: each entry becomes a two-line row (category + amount, then description + date) */
+  @media (max-width:600px) {
+    table.entries thead { display:none; }
+    table.entries, table.entries tbody { display:block; }
+    #list tr { display:grid; grid-template-columns:minmax(0,1fr) auto auto; grid-template-areas:"cat amt act" "desc date act"; column-gap:8px; padding:8px 0; border-bottom:1px solid var(--line); }
+    #list td { border:none; padding:0; min-width:0; }
+    #list td:nth-child(1) { grid-area:date; color:var(--muted); font-size:12px; text-align:right; }
+    #list td:nth-child(2) { grid-area:cat; font-weight:600; }
+    #list td:nth-child(3) { grid-area:desc; color:var(--muted); font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #list td:nth-child(4) { grid-area:amt; }
+    #list td:nth-child(5) { grid-area:act; align-self:center; }
+    #list td[colspan] { grid-column:1 / -1; }
+    #list .pill { display:none; }
+    #list .icon { padding:8px 10px; font-size:15px; }
+    #list tr.editing { grid-template-columns:1fr 1fr; grid-template-areas:none; gap:6px; }
+    #list tr.editing td { grid-area:auto !important; grid-column:1 / -1; text-align:left; color:inherit; font-size:14px; }
+    #list tr.editing td:nth-child(1), #list tr.editing td:nth-child(4) { grid-column:auto; }
+    #list tr.editing td:nth-child(2) { display:flex; gap:6px; }
+    #list tr.editing td.actions { text-align:right; }
+  }
+
+  /* work planner */
+  :root { --worked:#008300; --planned:var(--s1); }
+  .work-top { display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; align-items:flex-end; }
+  .hero { font-size:40px; font-weight:700; line-height:1.1; margin:2px 0 4px; }
+  .work-stats { display:flex; gap:28px; flex-wrap:wrap; }
+  .work-stats .value { font-size:20px; }
+  .yearbar { display:flex; gap:2px; height:16px; margin:18px 0 8px; }
+  .yearbar div { min-width:3px; }
+  .yearbar div:first-child { border-radius:4px 0 0 4px; } .yearbar div:last-child { border-radius:0 4px 4px 0; }
+  .seg-worked { background:var(--worked); } .seg-planned { background:var(--planned); }
+  .seg-open { background:var(--card); box-shadow:inset 0 0 0 1.5px var(--base); }
+  .seg-passed { background:var(--grid); }
+  .key { display:flex; flex-wrap:wrap; gap:4px 18px; font-size:13px; color:var(--muted); }
+  .key i { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  .key b { color:var(--text); font-variant-numeric:tabular-nums; font-weight:600; margin-left:4px; }
+  .notice { margin-top:12px; padding:10px 12px; border:1px dashed var(--planned); border-radius:8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:14px; }
+  .notice span { flex:1; min-width:200px; }
+  .seg-toggle { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .seg-toggle button { border:none; border-radius:0; background:var(--card); }
+  .seg-toggle button[aria-pressed=true] { background:var(--accent); color:#fff; font-weight:600; }
+  .months { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-top:16px; }
+  @media (max-width:1000px) { .months { grid-template-columns:repeat(2, 1fr); } }
+  @media (max-width:520px) { .months { grid-template-columns:1fr; } }
+  .mhead { display:flex; justify-content:space-between; align-items:baseline; gap:6px; margin-bottom:8px; }
+  .mhead h3 { font-size:14px; }
+  .mhead .icon { font-size:12px; color:var(--accent); padding:2px 4px; }
+  .msub { font-size:12px; color:var(--muted); margin:-4px 0 8px; font-variant-numeric:tabular-nums; }
+  .wk { display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; }
+  .dow { font-size:11px; color:var(--axis); text-align:center; }
+  .day { height:42px; padding:0; border-radius:6px; border:1px solid var(--line); background:var(--card); font-size:13px;
+         position:relative; font-variant-numeric:tabular-nums; touch-action:pan-y; user-select:none; -webkit-user-select:none; }
+  .day:hover { border-color:var(--planned); }
+  .day.na { border-color:transparent; background:transparent; color:var(--grid); cursor:default; }
+  .day.off { border-color:transparent; color:var(--axis); background:repeating-linear-gradient(135deg, transparent 0 4px, var(--grid) 4px 6px); }
+  .day.half::after { content:"½"; position:absolute; top:1px; right:4px; font-size:9px; font-weight:700; line-height:1; }
+  .day.past { color:var(--axis); background:transparent; border-color:transparent; }
+  .day.planned { background:var(--planned); color:#fff; border-color:transparent; font-weight:600; }
+  .day.worked { background:var(--worked); color:#fff; border-color:transparent; font-weight:600; }
+  .day.past.planned { background:transparent; color:var(--planned); border:1.5px dashed var(--planned); }
+  .day.today { outline:2px solid var(--text); outline-offset:1px; }
+  .day.paint-on { background:var(--planned); color:#fff; opacity:.6; }
+  .day.paint-off { background:var(--card); color:var(--text); }
+  .day.has-note::before { content:""; position:absolute; left:50%; bottom:3px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:currentColor; }
+  textarea { font:inherit; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:7px; padding:7px 10px; width:100%; resize:vertical; }
+  #ddlg form, #dFields { gap:10px; }
+  #dFields { display:grid; border:none; margin:0; padding:0; min-width:0; }
+  #dFields:disabled { opacity:.45; }
+  .status-seg { display:grid; grid-auto-flow:column; grid-auto-columns:1fr; }
+  .status-seg button { padding:8px; }
+  .status-seg button[data-st=worked][aria-pressed=true] { background:var(--worked); }
+  .day { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; line-height:1.1; }
+  .day .dt { font-size:9px; font-weight:500; opacity:.92; letter-spacing:-.02em; white-space:nowrap; }
+  .hours-row { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; }
+  @media (max-width:520px) { .hours-row { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  .paybox { background:var(--bg); border-radius:8px; padding:8px 12px; font-size:14px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-variant-numeric:tabular-nums; }
+  .paybox b { font-size:16px; }
+  .hint-btn { font-size:12px; padding:3px 8px; }
+  .ladder { list-style:none; margin:0 0 14px; padding:0; display:grid; gap:12px; }
+  .ladder li { display:grid; grid-template-columns:28px 1fr auto; gap:4px 12px; align-items:center; }
+  .ladder .n { width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font-size:13px; font-weight:700; border:1.5px solid var(--base); color:var(--muted); grid-row:span 2; }
+  .ladder li.done .n { background:var(--worked); border-color:var(--worked); color:#fff; }
+  .ladder li.now .n { border-color:var(--accent); color:var(--accent); }
+  .ladder .t { font-weight:600; } .ladder .v { font-variant-numeric:tabular-nums; text-align:right; }
+  .ladder .s { grid-column:2 / -1; font-size:13px; color:var(--muted); }
+  .track { grid-column:2 / -1; height:8px; background:var(--grid); border-radius:4px; overflow:hidden; }
+  .track div { height:100%; background:var(--accent); border-radius:0 4px 4px 0; }
+  .ladder li.done .track div { background:var(--worked); }
+  .rec { display:grid; grid-template-columns:1fr auto auto; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .rec .amt { font-variant-numeric:tabular-nums; }
+  .rec.logged .nm { color:var(--muted); text-decoration:line-through; }
+  .add-rec { display:grid; grid-template-columns:2fr 1fr 1.4fr 1fr auto; gap:6px; margin-top:8px; }
+  @media (max-width:640px) { .add-rec { grid-template-columns:1fr 1fr; } }
+  .seg-deposit { background:repeating-linear-gradient(135deg, var(--grid) 0 4px, transparent 4px 7px); box-shadow:inset 0 0 0 1.5px var(--base); }
+  .seg-free { background:var(--worked); } .seg-short { background:var(--exp); }
+  .big-num { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .cmp { display:grid; grid-template-columns:1fr auto auto; gap:6px 14px; font-size:14px; margin-bottom:12px; font-variant-numeric:tabular-nums; }
+  .cmp .h { color:var(--muted); font-size:12px; }
+  .wset-foot { grid-column:1 / -1; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .log-row { cursor:pointer; } .log-row:hover td { background:var(--bg); }
+  .log-note { color:var(--muted); max-width:280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .btn-danger { color:var(--exp); }
+  .cal-edit .day:not(.na) { cursor:cell; }
+  .cal-edit .day.planned, .cal-edit .day.worked { opacity:.55; }
+  details.card summary { cursor:pointer; font-weight:600; }
+  .wset { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:12px; align-items:end; }
+  @media (max-width:720px) { .wset { grid-template-columns:1fr 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <h1>Budget Tracker</h1>
+    <nav class="tabs" role="tablist">
+      <button data-tab="entries" role="tab">Entries</button>
+      <button data-tab="money" role="tab">Money</button>
+      <button data-tab="analytics" role="tab">Analytics</button>
+      <button data-tab="work" role="tab">Work</button>
+      <button data-tab="categories" role="tab">Categories</button>
+      <button data-tab="data" role="tab">Import / Export</button>
+    </nav>
+  </div>
+  <div id="banner" class="notice" hidden style="margin-top:12px"></div>
+
+  <!-- ENTRIES -->
+  <section id="tab-entries" hidden>
+    <div class="controls">
+      <div class="monthnav">
+        <button id="prevM" title="Previous month">‹</button>
+        <input type="month" id="month" aria-label="Month">
+        <button id="nextM" title="Next month">›</button>
+      </div>
+    </div>
+    <div class="grid three">
+      <div class="card stat"><div class="label">Income</div><div class="value inc" id="sIncome">$0.00</div></div>
+      <div class="card stat"><div class="label">Expenses</div><div class="value exp" id="sExpense">$0.00</div></div>
+      <div class="card stat"><div class="label">Net</div><div class="value" id="sNet">$0.00</div></div>
+    </div>
+    <div class="grid two">
+      <div class="card">
+        <h2>Add entry</h2>
+        <form id="form" class="entry">
+          <div class="toggle">
+            <label><input type="radio" name="type" value="expense" checked><span>Expense</span></label>
+            <label><input type="radio" name="type" value="income"><span>Income</span></label>
+          </div>
+          <div class="row">
+            <label>Date <input type="date" id="date" required></label>
+            <label>Amount <input type="number" id="amount" step="0.01" min="0.01" placeholder="0.00" required></label>
+          </div>
+          <label>Category <select id="category"></select></label>
+          <label>Description <input id="desc" placeholder="e.g. Electric bill" maxlength="200"></label>
+          <button class="primary" type="submit">Add</button>
+          <div class="err" id="err"></div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Spending by category</h2>
+        <div id="breakdown"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>Entries this month</h2>
+      <div class="filters">
+        <input id="q" placeholder="Search description or category">
+        <select id="fcat"></select>
+        <button id="selToggle" type="button">Select…</button>
+      </div>
+      <div class="copybar" id="copybar" hidden>
+        <span id="selCount">0 selected</span>
+        <button type="button" class="hint-btn" data-pick="expense">All expenses</button>
+        <button type="button" class="hint-btn" data-pick="all">All</button>
+        <button type="button" class="hint-btn" data-pick="none">None</button>
+        <span class="copy-to">Copy to <input type="month" id="copyTo" aria-label="Copy to month"></span>
+        <button type="button" class="primary" id="copyGo">Copy</button>
+        <span class="small" id="copyMsg"></span>
+      </div>
+      <table class="entries">
+        <thead><tr><th>Date</th><th>Category</th><th>Description</th><th class="num">Amount</th><th></th></tr></thead>
+        <tbody id="list"></tbody>
+      </table>
+      <p class="muted small">Tip: tap ✎ (or double-click a row) to edit it. Enter saves, Esc cancels.</p>
+    </div>
+  </section>
+
+  <!-- ANALYTICS -->
+  <section id="tab-analytics" hidden>
+    <div class="controls">
+      <div class="group">
+        <label>From <input type="month" id="rFrom"></label>
+        <label>To <input type="month" id="rTo"></label>
+        <button class="chip" data-preset="6m">Last 6 mo</button>
+        <button class="chip" data-preset="12m">Last 12 mo</button>
+        <button class="chip" data-preset="ytd">This year</button>
+        <button class="chip" data-preset="all">All time</button>
+      </div>
+      <div class="group">
+        <button id="resetDash" title="Restore the default charts">Reset charts</button>
+        <button class="primary" id="addW">+ Add chart</button>
+      </div>
+    </div>
+    <div class="grid five" id="kpis"></div>
+    <div class="grid" id="dash"></div>
+  </section>
+
+  <!-- MONEY -->
+  <section id="tab-money" hidden>
+    <div class="card" style="margin-top:16px">
+      <div class="work-top">
+        <div>
+          <div class="muted small">Free cash: yours to use after setting aside the tenant's deposit</div>
+          <div class="hero" id="mFree"></div>
+          <div class="muted small" id="mFreeSub"></div>
+        </div>
+        <div class="work-stats" id="mStats"></div>
+      </div>
+      <div class="yearbar" id="mCashBar"></div>
+      <div class="key" id="mCashKey"></div>
+      <details style="margin-top:12px">
+        <summary class="small">Update balances</summary>
+        <div class="wset">
+          <label>Checking <input type="number" step="0.01" data-m="accounts.checking"></label>
+          <label>Savings (total, incl. deposit) <input type="number" step="0.01" data-m="accounts.savings"></label>
+          <label>Savings APY % <input type="number" step="0.01" min="0" data-m="accounts.savingsApy"></label>
+          <label>Tenant deposit you're holding <input type="number" step="0.01" min="0" data-m="deposit.amount"></label>
+          <label>Balances as of <input type="date" data-m="accounts.asOf"></label>
+        </div>
+      </details>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h2>Every dollar's job</h2>
+      <ol class="ladder" id="mLadder"></ol>
+      <div class="notice" id="mNext" style="border-style:solid"></div>
+    </div>
+
+    <div class="grid two">
+      <div class="card">
+        <div class="mhead"><h2 style="margin:0">Monthly checklist</h2><input type="month" id="mMonth" aria-label="Checklist month"></div>
+        <p class="muted small" style="margin:4px 0 8px">Log each item when it hits your account. It's added to Entries, and mortgage payments update the loan balance.</p>
+        <div id="mChecklist"></div>
+        <details style="margin-top:10px"><summary class="small">Add a recurring bill or income</summary>
+          <form class="add-rec" id="mRecForm">
+            <input name="name" placeholder="e.g. Phone bill" required maxlength="60">
+            <select name="type"><option value="expense">Expense</option><option value="income">Income</option></select>
+            <input name="category" placeholder="Category" list="allCats" maxlength="40">
+            <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required>
+            <button>Add</button>
+          </form>
+          <datalist id="allCats"></datalist>
+        </details>
+      </div>
+      <div class="card">
+        <h2>Interest on your cash</h2>
+        <div id="mInterest"></div>
+        <div class="wset" style="grid-template-columns:1fr 1fr">
+          <label>Your savings APY % <input type="number" step="0.01" min="0" data-m="accounts.savingsApy"></label>
+          <label>High-yield comparison APY % <input type="number" step="0.01" min="0" data-m="plan.hysaApy"></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="mhead"><h2 style="margin:0">Cash forecast</h2>
+        <label class="chk small">Months <select data-m="plan.horizon"><option>12</option><option>24</option><option>36</option></select></label></div>
+      <p class="muted small" id="mFcSub" style="margin:4px 0 10px"></p>
+      <div class="wset">
+        <label>Living costs / month (not mortgage) <input type="number" step="1" min="0" data-m="plan.living" placeholder="auto"></label>
+        <label>Mortgage escrow / month (taxes + insurance) <input type="number" step="0.01" min="0" data-m="mortgage.escrow"></label>
+        <label>Rent from tenant / month <input type="number" step="0.01" min="0" data-m="tenant.rent"></label>
+        <label>Sub teaching: also count % of open days <input type="number" step="5" min="0" max="100" data-m="plan.workShare"></label>
+        <label class="chk" style="align-self:center"><input type="checkbox" data-m="tenant.moveOut"> Tenant moves out</label>
+        <label>Last month of their lease <input type="month" data-m="tenant.moveOutMonth"></label>
+        <label>Empty months before a new tenant <input type="number" step="1" min="0" max="24" data-m="tenant.vacancyMonths"></label>
+        <label>New tenant's deposit <input type="number" step="0.01" min="0" data-m="tenant.newDeposit"></label>
+      </div>
+      <div class="legend" id="mFcLegend" style="margin-top:14px"></div>
+      <div class="w-body" id="mFcChart"></div>
+      <details style="margin-top:8px"><summary class="small">Month-by-month table</summary><div id="mFcTable" style="overflow-x:auto"></div></details>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="work-top">
+        <div>
+          <div class="muted small">Mortgage balance</div>
+          <div class="hero" id="mgBal"></div>
+          <div class="muted small" id="mgSub"></div>
+        </div>
+        <div class="work-stats" id="mgStats"></div>
+      </div>
+      <h3 style="margin:18px 0 8px">What if you paid extra?</h3>
+      <div class="wset">
+        <label>Extra principal / month <input type="number" step="10" min="0" data-m="plan.extra"></label>
+        <label>One-time lump sum now <input type="number" step="100" min="0" data-m="plan.lump"></label>
+        <div id="mgWhat" class="small" style="align-self:end"></div>
+      </div>
+      <div class="legend" id="mgLegend" style="margin-top:14px"></div>
+      <div class="w-body" id="mgChart"></div>
+      <details style="margin-top:8px"><summary class="small">Yearly schedule</summary><div id="mgTable" style="overflow-x:auto"></div></details>
+      <details style="margin-top:8px"><summary class="small">Payments logged</summary><div id="mgHist"></div></details>
+      <details style="margin-top:8px"><summary class="small">Loan details</summary>
+        <div class="wset">
+          <label>Current balance <input type="number" step="0.01" data-m="mortgage.balance"></label>
+          <label>Interest rate % <input type="number" step="0.001" data-m="mortgage.rate"></label>
+          <label>Monthly P&amp;I <input type="number" step="0.01" data-m="mortgage.payment"></label>
+          <label>Next payment due <input type="month" data-m="mortgage.nextDue"></label>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- WORK -->
+  <section id="tab-work" hidden>
+    <div class="card" style="margin-top:16px">
+      <div class="work-top">
+        <div>
+          <div class="muted small" id="wLabel">Still available</div>
+          <div class="hero" id="wHero">$0</div>
+          <div class="muted small" id="wHeroSub"></div>
+        </div>
+        <div class="work-stats" id="wStats"></div>
+      </div>
+      <div class="yearbar" id="wBar"></div>
+      <div class="key" id="wKey"></div>
+      <div id="wNotice"></div>
+    </div>
+    <div class="controls">
+      <div class="seg-toggle" role="group" aria-label="Calendar mode">
+        <button data-wmode="plan">Plan &amp; log days</button>
+        <button data-wmode="edit">Edit school calendar</button>
+      </div>
+      <span class="muted small" id="wHint"></span>
+    </div>
+    <div class="months" id="wMonths"></div>
+    <div class="card" style="margin-top:16px">
+      <div class="mhead"><h2 style="margin:0">Schedule &amp; work log</h2><button class="btn" data-dl="worklog">Export log (CSV)</button></div>
+      <p class="muted small" id="logSum" style="margin:4px 0 10px"></p>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>Date</th><th>School</th><th>Teacher / class</th><th>Time</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">Pay</th><th>Notes</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table></div>
+    </div>
+    <details class="card" style="margin-top:16px" id="wSettings">
+      <summary>Job settings</summary>
+      <form class="wset" id="wForm">
+        <label>Job name <input name="name" maxlength="60"></label>
+        <label>Log pay as income category <input name="category" list="incCats" maxlength="40"></label>
+        <datalist id="incCats"></datalist>
+        <label>Pay basis
+          <select name="payBasis">
+            <option value="hourly">Hourly: hours worked × rate</option>
+            <option value="daily">Flat day rate</option>
+          </select>
+        </label>
+        <label>Full-day pay <input name="rate" type="number" step="0.01" min="0"></label>
+        <label>Half-day pay <input name="halfRate" type="number" step="0.01" min="0"></label>
+        <label>Standard full day (hours) <input name="dayHours" type="number" step="0.25" min="0.25" max="24"></label>
+        <label>Hourly rate <input name="hourly" type="number" step="0.01" min="0"></label>
+        <label>Usual start <input name="dayStart" type="time"></label>
+        <label>Usual end <input name="dayEnd" type="time"></label>
+        <label>Usual unpaid break (min) <input name="dayBreak" type="number" min="0" step="5"></label>
+        <label>First day <input name="start" type="date"></label>
+        <label>Last day <input name="end" type="date"></label>
+        <div class="wset-foot"><button type="button" class="hint-btn" id="deriveRate"></button>
+          <span><span class="muted small" id="wErr"></span> <button class="primary">Save settings</button></span></div>
+      </form>
+    </details>
+  </section>
+
+  <!-- CATEGORIES -->
+  <section id="tab-categories" hidden>
+    <p class="muted" style="margin-top:16px">Renaming a category updates every entry that uses it. Deleting one moves its entries to Misc.</p>
+    <div class="grid two" id="catLists"></div>
+  </section>
+
+  <!-- DATA -->
+  <section id="tab-data" hidden>
+    <div class="grid two">
+      <div class="card stack">
+        <h2>Export</h2>
+        <div><button class="btn primary" data-dl="tx">Download entries (CSV)</button></div>
+        <p class="muted small">Every entry, one row each. Opens in Excel or <code>readr::read_csv()</code>.</p>
+        <div><button class="btn" data-dl="backup">Download full backup (JSON)</button></div>
+        <p class="muted small">Everything: entries, categories, charts, work schedule and Money tab. Your data lives only on this device, so save one regularly (e.g. to iCloud Drive or Google Drive). Restore it with Import → Replace all.</p>
+      </div>
+      <div class="card stack">
+        <h2>Import</h2>
+        <input type="file" id="importFile" accept=".csv,.json,text/csv,application/json">
+        <div class="toggle">
+          <label><input type="radio" name="imode" value="merge" checked><span>Merge</span></label>
+          <label><input type="radio" name="imode" value="replace"><span>Replace all</span></label>
+        </div>
+        <p class="muted small" id="modeHelp"></p>
+        <button class="primary" id="importBtn">Import</button>
+        <div id="importResult"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h2>CSV format</h2>
+      <p class="small">Columns: <code>date</code>, <code>amount</code> (required), plus optional <code>type</code>, <code>category</code>, <code>description</code>. Column names aren't case-sensitive.</p>
+      <ul class="small muted">
+        <li>Dates can be <code>2026-10-16</code>, <code>10/16/2026</code> or <code>10/16/26</code>.</li>
+        <li>No <code>type</code> column? Negative amounts become expenses, positive become income (handy for bank exports).</li>
+        <li>Unknown categories are created automatically; blank ones go to Misc.</li>
+        <li>Merge skips rows that exactly match an existing entry, so re-importing the same file won't double up.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<dialog id="wdlg">
+  <form id="wform">
+    <h3 id="wdlgTitle">Add chart</h3>
+    <label>Title <input name="wtitle" maxlength="60" placeholder="Leave blank for an automatic title"></label>
+    <div class="row">
+      <label>Show
+        <select name="measure">
+          <option value="expense">Expenses</option>
+          <option value="income">Income</option>
+          <option value="net">Net (income − expenses)</option>
+          <option value="both">Income vs expenses</option>
+        </select>
+      </label>
+      <label>Group by
+        <select name="groupBy">
+          <option value="month">Month</option>
+          <option value="category">Category</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label>Chart type
+        <select name="chart">
+          <option value="bar">Bar</option>
+          <option value="line">Line</option>
+          <option value="donut">Donut</option>
+        </select>
+      </label>
+      <label>Width
+        <select name="size">
+          <option value="half">Half</option>
+          <option value="full">Full</option>
+        </select>
+      </label>
+    </div>
+    <label class="chk" id="splitRow"><input type="checkbox" name="split"> Break out by category (one series per category)</label>
+    <div id="catRow">
+      <label>Only these categories <span class="small">(none checked = all)</span></label>
+      <div class="catbox" id="catBox"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" id="wCancel">Cancel</button>
+      <button class="primary" type="submit">Save chart</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="ddlg">
+  <form id="dform">
+    <div class="mhead"><h3 id="dTitle"></h3><span class="muted small" id="dSub"></span></div>
+    <div class="seg-toggle status-seg" role="group" aria-label="Day status" id="dSeg"></div>
+    <p class="muted small" id="dHint" style="margin:-4px 0 0"></p>
+    <fieldset id="dFields">
+    <label>School <input name="school" list="schoolList" maxlength="80" autocomplete="off"></label>
+    <datalist id="schoolList"></datalist>
+    <label>Address <input name="address" maxlength="160"></label>
+    <div class="hours-row">
+      <label>Start <input type="time" name="start"></label>
+      <label>End <input type="time" name="end"></label>
+      <label>Break (min) <input type="number" name="break" min="0" max="600" step="5" placeholder="0"></label>
+      <label>Hours worked <input type="number" name="hours" min="0" max="24" step="0.01" placeholder="auto"></label>
+    </div>
+    <div class="paybox" id="dPay"></div>
+    <label>Teacher / class <input name="teacher" maxlength="80" placeholder="e.g. Ms. Rivera, 4th grade"></label>
+    <label>Notes <textarea name="notes" rows="3" maxlength="1000" placeholder="Parking, room number, lesson plan location…"></textarea></label>
+    </fieldset>
+    <div class="dlg-actions">
+      <button type="button" id="dClose">Cancel</button> <button class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="tooltip" hidden></div>
+
+<script src="backend.js"></script>
+<script>
+const $ =(s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const fmt = n => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+const fmtShort = n => {
+  const a = Math.abs(n);
+  const s = a >= 1e6 ? (a / 1e6).toFixed(1) + "M" : a >= 1e3 ? (a / 1e3).toFixed(a >= 1e4 ? 0 : 1) + "k" : a.toFixed(0);
+  return (n < 0 ? "−$" : "$") + s.replace(/\.0(?=[kM])/, "");
+};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("budget." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("budget." + k, JSON.stringify(v)); } catch {} },
+};
+const now = new Date();
+const today = new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const thisMonth = today.slice(0, 7);
+const shiftMonth = (m, d) => {
+  let [y, mo] = m.split("-").map(Number);
+  mo += d; y += Math.floor((mo - 1) / 12); mo = ((mo - 1) % 12 + 12) % 12 + 1;
+  return `${y}-${String(mo).padStart(2, "0")}`;
+};
+const monthsBetween = (a, b) => { if (a > b) [a, b] = [b, a]; const out = []; for (let m = a; m <= b && out.length < 240; m = shiftMonth(m, 1)) out.push(m); return out; };
+const monthLabel = m => m.length === 4 ? m : new Date(m + "-15T12:00").toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+const slot = i => `var(--s${i + 1})`;
+const typeName = t => t === "income" ? "Income" : "Expense";
+
+const S = {
+  cats: { income: [], expense: [] }, tx: [], dash: [],
+  tab: store.get("tab", "entries"), month: thisMonth, editing: null, q: "", fcat: "",
+  range: store.get("range", null), preset: store.get("preset", "6m"), tables: new Set(), editW: null,
+};
+
+// all "API" calls are handled on this device by backend.js; nothing goes over the network
+const api = (method, path, body) => Backend.request(method, path, body);
+function download(name, text, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-dl]"); if (!b) return;
+  const kind = b.dataset.dl;
+  if (kind === "tx") download(`budget-transactions-${today}.csv`, Backend.exportTxCSV(), "text/csv");
+  if (kind === "backup") { download(`budget-backup-${today}.json`, Backend.exportBackup(), "application/json"); markBackedUp(); }
+  if (kind === "worklog") download(`work-log-${today}.csv`, Backend.exportWorklogCSV(), "text/csv");
+});
+const markBackedUp = () => { store.set("lastBackup", today); renderBanner(); };
+function renderBanner() {
+  const st = Backend.status(), last = store.get("lastBackup", null), el = $("#banner");
+  const days = last ? Math.round((new Date(today) - new Date(last)) / 864e5) : null;
+  let html = "";
+  if (!st.storageOk) html = `<b>This browser isn't letting the app save data</b> (private browsing?). Changes will be lost when you close it.`;
+  else if (Backend.isEmpty()) html = `<b>Welcome!</b> Your data is stored only on this device. Moving from the desktop version? On your computer, go to <b>Import / Export → Download full backup</b>, then here open <b>Import / Export</b>, choose that file, pick <b>Replace all</b> and tap Import. <button class="hint-btn" data-tab-go="data">Go to Import</button>`;
+  else if (days === null || days >= 14) html = `${days === null ? "You haven't backed up yet." : `Last backup ${days} days ago.`} Your data lives only on this device, so save a copy now and then. <button class="hint-btn" data-dl="backup">Download backup</button>`;
+  el.innerHTML = html; el.hidden = !html;
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-tab-go]"); if (b) showTab(b.dataset.tabGo); });
+function setState(d) { S.cats = d.categories; S.tx = d.transactions; S.dash = d.dashboard; S.work = d.work; S.money = d.money; }
+const catOptions = (type, sel) => S.cats[type].map(c => `<option ${c === sel ? "selected" : ""}>${esc(c)}</option>`).join("");
+
+// ---------- tabs ----------
+function showTab(tab) {
+  S.tab = tab; store.set("tab", tab);
+  $$("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
+  $$("main > section").forEach(s => s.hidden = s.id !== "tab-" + tab);
+  render();
+}
+$$("nav.tabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+
+function render() {
+  if (S.tab === "entries") renderEntries();
+  if (S.tab === "analytics") renderAnalytics();
+  if (S.tab === "work") renderWork();
+  if (S.tab === "money") renderMoney();
+  if (S.tab === "categories") renderCats();
+  if (S.tab === "data") renderData();
+}
+
+// ---------- entries ----------
+const kind = () => $("input[name=type]:checked").value;
+function fillCategories() { $("#category").innerHTML = catOptions(kind()); }
+
+function renderEntries() {
+  $("#month").value = S.month;
+  const monthRows = S.tx.filter(t => t.date.startsWith(S.month));
+  const sum = type => monthRows.filter(t => t.type === type).reduce((s, t) => s + +t.amount, 0);
+  const inc = sum("income"), exp = sum("expense"), net = inc - exp;
+  $("#sIncome").textContent = fmt(inc);
+  $("#sExpense").textContent = fmt(exp);
+  $("#sNet").textContent = fmt(net);
+  $("#sNet").className = "value " + (net >= 0 ? "inc" : "exp");
+
+  const byCat = {};
+  monthRows.filter(t => t.type === "expense").forEach(t => byCat[t.category] = (byCat[t.category] || 0) + +t.amount);
+  const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  const top = cats.length ? cats[0][1] : 1;
+  $("#breakdown").innerHTML = cats.length
+    ? cats.map(([c, v]) => `<div class="bar-row"><span>${esc(c)}</span><div class="bar" style="width:${(v / top * 100).toFixed(1)}%"></div><span class="num">${fmt(v)}</span></div>`).join("")
+    : `<p class="empty">No expenses this month yet.</p>`;
+
+  $("#fcat").innerHTML = `<option value="">All categories</option>` + ["income", "expense"].map(t =>
+    `<optgroup label="${typeName(t)}">${S.cats[t].map(c => `<option value="${t}:${esc(c)}">${esc(c)}</option>`).join("")}</optgroup>`).join("");
+  $("#fcat").value = S.fcat;
+
+  const q = S.q.toLowerCase();
+  const rows = monthRows
+    .filter(t => (!S.fcat || `${t.type}:${t.category}` === S.fcat) && (!q || `${t.description} ${t.category}`.toLowerCase().includes(q)))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  $("#list").innerHTML = rows.length
+    ? rows.map(t => t.id === S.editing ? rowEdit(t) : rowView(t)).join("")
+    : `<tr><td colspan="5" class="empty">${monthRows.length ? "No entries match the filter." : "No entries for this month."}</td></tr>`;
+  syncCopybar();
+  const first = $("#list tr.editing input[name=amount]");
+  if (first) first.focus();
+}
+
+function rowView(t) {
+  const isInc = t.type === "income", picked = S.selecting && S.picked.has(t.id);
+  const box = S.selecting ? `<input type="checkbox" class="sel" tabindex="-1" ${picked ? "checked" : ""} aria-label="Select">` : "";
+  return `<tr data-id="${t.id}" class="${picked ? "picked" : ""}"><td>${t.date}</td><td>${box}<span class="pill">${typeName(t.type)}</span>${esc(t.category)}</td>
+    <td>${esc(t.description)}</td><td class="num ${isInc ? "inc" : "exp"}">${isInc ? "+" : "−"}${fmt(+t.amount)}</td>
+    <td class="actions"><button class="icon" data-act="edit" data-id="${t.id}" title="Edit">✎</button><button class="icon" data-act="del" data-id="${t.id}" title="Delete">✕</button></td></tr>`;
+}
+function rowEdit(t) {
+  return `<tr class="editing" data-id="${t.id}">
+    <td><input type="date" name="date" value="${t.date}"></td>
+    <td><select name="type">${["expense", "income"].map(k => `<option value="${k}" ${k === t.type ? "selected" : ""}>${typeName(k)}</option>`).join("")}</select>
+        <select name="category">${catOptions(t.type, t.category)}</select></td>
+    <td><input name="description" value="${esc(t.description)}" maxlength="200"></td>
+    <td><input name="amount" type="number" step="0.01" min="0.01" value="${t.amount}"></td>
+    <td class="actions"><button class="icon" data-act="save" data-id="${t.id}" title="Save">Save</button><button class="icon" data-act="cancel" title="Cancel">Cancel</button></td></tr>`;
+}
+
+async function saveEdit(tr) {
+  const v = n => $(`[name=${n}]`, tr).value;
+  try {
+    setState(await api("PUT", "/api/tx/" + tr.dataset.id, { date: v("date"), type: v("type"), category: v("category"), description: v("description"), amount: v("amount") }));
+    S.editing = null; renderEntries();
+  } catch (e) { alert(e.message); }
+}
+
+// ---- batch select & copy to another month ----
+S.selecting = false; S.picked = new Set();
+const visibleRows = () => $$("#list tr[data-id]").map(tr => S.tx.find(t => t.id === tr.dataset.id)).filter(Boolean);
+function syncCopybar() {
+  $("#selToggle").setAttribute("aria-pressed", S.selecting);
+  $("#selToggle").textContent = S.selecting ? "Done" : "Select…";
+  $("#copybar").hidden = !S.selecting;
+  $("#tab-entries").classList.toggle("selecting", S.selecting);
+  const n = S.picked.size, total = S.tx.filter(t => S.picked.has(t.id)).reduce((s, t) => s + (t.type === "income" ? 1 : -1) * t.amount, 0);
+  $("#selCount").textContent = n ? `${n} selected · ${fmt(total)}` : "Tap entries to select";
+  $("#copyGo").disabled = !n;
+}
+$("#selToggle").addEventListener("click", () => {
+  S.selecting = !S.selecting; S.picked.clear(); S.editing = null;
+  $("#copyTo").value = shiftMonth(S.month, 1); $("#copyMsg").textContent = "";
+  renderEntries();
+});
+$("#copybar").addEventListener("click", e => {
+  const p = e.target.closest("[data-pick]")?.dataset.pick; if (!p) return;
+  S.picked.clear();
+  if (p !== "none") visibleRows().forEach(t => { if (p === "all" || t.type === p) S.picked.add(t.id); });
+  renderEntries();
+});
+$("#copyGo").addEventListener("click", async () => {
+  const to = $("#copyTo").value; if (!to || !S.picked.size) return;
+  try {
+    const d = await api("POST", "/api/copy", { ids: [...S.picked], toMonth: to });
+    setState(d);
+    const r = d.copy, notes = [];
+    if (r.dupes) notes.push(`${r.dupes} already there`);
+    if (r.skippedLinked) notes.push(`${r.skippedLinked} skipped: rent/mortgage and work pay are logged from the Money and Work tabs`);
+    S.picked.clear(); S.selecting = false; S.month = r.toMonth;
+    renderEntries();
+    $("#copyMsg").textContent = "";
+    toast(`Copied ${r.copied} entr${r.copied === 1 ? "y" : "ies"} to ${monthLabel(r.toMonth)}.${notes.length ? " " + notes.join("; ") + "." : ""} Edit any amounts that changed.`);
+  } catch (err) { $("#copyMsg").textContent = err.message; }
+});
+function toast(msg) {
+  let el = $("#toast");
+  if (!el) { el = document.createElement("div"); el.id = "toast"; el.className = "notice"; el.style.cssText = "margin:0 0 10px;border-style:solid"; $("#tab-entries .filters").before(el); }
+  el.innerHTML = `<span>${esc(msg)}</span><button class="icon" onclick="this.parentElement.remove()" aria-label="Dismiss">✕</button>`;
+}
+
+$("#list").addEventListener("click", async e => {
+  if (S.selecting) {
+    const tr = e.target.closest("tr[data-id]"); if (!tr) return;
+    S.picked.has(tr.dataset.id) ? S.picked.delete(tr.dataset.id) : S.picked.add(tr.dataset.id);
+    return renderEntries();
+  }
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const act = b.dataset.act, id = b.dataset.id;
+  if (act === "edit") { S.editing = id; renderEntries(); }
+  if (act === "cancel") { S.editing = null; renderEntries(); }
+  if (act === "save") saveEdit(b.closest("tr"));
+  if (act === "del" && confirm("Delete this entry?")) { setState(await api("DELETE", "/api/tx/" + id)); renderEntries(); }
+});
+$("#list").addEventListener("dblclick", e => {
+  const tr = e.target.closest("tr[data-id]:not(.editing)"); if (!tr || S.selecting) return;
+  S.editing = tr.dataset.id; renderEntries();
+});
+$("#list").addEventListener("change", e => {
+  if (e.target.name === "type") $("[name=category]", e.target.closest("tr")).innerHTML = catOptions(e.target.value);
+});
+$("#list").addEventListener("keydown", e => {
+  const tr = e.target.closest("tr.editing"); if (!tr) return;
+  if (e.key === "Enter") { e.preventDefault(); saveEdit(tr); }
+  if (e.key === "Escape") { S.editing = null; renderEntries(); }
+});
+
+$("#form").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("#err").textContent = "";
+  try {
+    const d = await api("POST", "/api/tx", { type: kind(), date: $("#date").value, category: $("#category").value, description: $("#desc").value, amount: $("#amount").value });
+    setState(d);
+    S.month = d.row.date.slice(0, 7);
+    $("#amount").value = ""; $("#desc").value = "";
+    $("#amount").focus();
+    renderEntries();
+  } catch (err) { $("#err").textContent = err.message; }
+});
+$$("input[name=type]").forEach(r => r.addEventListener("change", fillCategories));
+$("#month").addEventListener("change", e => { if (e.target.value) { S.month = e.target.value; S.editing = null; renderEntries(); } });
+$("#prevM").addEventListener("click", () => { S.month = shiftMonth(S.month, -1); renderEntries(); });
+$("#nextM").addEventListener("click", () => { S.month = shiftMonth(S.month, 1); renderEntries(); });
+$("#q").addEventListener("input", e => { S.q = e.target.value; renderEntries(); });
+$("#fcat").addEventListener("change", e => { S.fcat = e.target.value; renderEntries(); });
+
+// ---------- charts ----------
+const TIPS = [];
+const addTip = html => TIPS.push(html) - 1;
+const tipRow = (color, name, v) => `<div class="tt-row"><i style="background:${color}"></i>${esc(name)}<span>${fmt(v)}</span></div>`;
+
+function niceTicks(min, max, n = 4) {
+  if (min === max) max = min + 1;
+  const raw = (max - min) / n, mag = 10 ** Math.floor(Math.log10(raw)), e = raw / mag;
+  const step = (e >= 7.5 ? 10 : e >= 3.5 ? 5 : e >= 1.5 ? 2 : 1) * mag;
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step, ticks = [];
+  for (let t = lo; t <= hi + step / 2; t += step) ticks.push(Math.round(t * 100) / 100);
+  return [lo, hi, ticks];
+}
+const svg = (W, H, inner) => `<svg class="chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">${inner}</svg>`;
+const yAxis = (ticks, y, m, W) => ticks.map(t => `<line class="gridline" x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}"/><text class="tick" x="${m.l - 8}" y="${y(t) + 4}" text-anchor="end">${fmtShort(t)}</text>`).join("");
+function xAxis(labels, xpos, m, H, room) {
+  const every = Math.max(1, Math.ceil(labels.length / Math.max(1, Math.floor(room / 54))));
+  return labels.map((l, i) => i % every ? "" : `<text class="tick" x="${xpos(i)}" y="${H - 8}" text-anchor="middle">${monthLabel(l)}</text>`).join("");
+}
+function barPath(x, y0, w, h, up, r = 4) {
+  if (h <= 0.5) return "";
+  r = Math.min(r, w / 2, h);
+  if (up) { const yt = y0 - h; return `M${x},${y0}V${yt + r}Q${x},${yt} ${x + r},${yt}H${x + w - r}Q${x + w},${yt} ${x + w},${yt + r}V${y0}Z`; }
+  const yb = y0 + h; return `M${x},${y0}V${yb - r}Q${x},${yb} ${x + r},${yb}H${x + w - r}Q${x + w},${yb} ${x + w},${yb - r}V${y0}Z`;
+}
+const legendHTML = series => series.length > 1 ? `<div class="legend">${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>` : "";
+
+function monthTip(label, series, stacked) {
+  let h = `<b>${monthLabel(label)}</b>` + series.map(s => tipRow(s.color, s.name, s.v)).join("");
+  if (stacked && series.length > 1) h += `<div class="tt-row" style="border-top:1px solid var(--line);padding-top:3px">Total<span>${fmt(series.reduce((a, s) => a + s.v, 0))}</span></div>`;
+  return h;
+}
+
+function barChart(labels, series, W, stacked) {
+  const H = 250, m = { l: 56, r: 8, t: 10, b: 28 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const vals = stacked ? labels.map((_, i) => series.reduce((s, se) => s + se.values[i], 0)) : series.flatMap(s => s.values);
+  const [lo, hi, ticks] = niceTicks(Math.min(0, ...vals), Math.max(0, ...vals));
+  const y = v => m.t + ih - (v - lo) / (hi - lo) * ih, y0 = y(0);
+  const band = iw / labels.length, gw = Math.min(band * 0.7, stacked ? 44 : 30 * series.length + 2 * (series.length - 1));
+  let g = yAxis(ticks, y, m, W) + xAxis(labels, i => m.l + i * band + band / 2, m, H, iw);
+  labels.forEach((lab, i) => {
+    const x0 = m.l + i * band + (band - gw) / 2;
+    if (stacked) {
+      let acc = 0; const last = series.map(s => s.values[i] > 0).lastIndexOf(true);
+      series.forEach((s, si) => {
+        const v = s.values[i]; if (v <= 0) return;
+        const yb = y(acc), h = yb - y(acc + v);
+        g += si === last ? `<path class="seg" d="${barPath(x0, yb, gw, h, true)}" fill="${s.color}" stroke="var(--card)" stroke-width="1"/>`
+                         : `<rect class="seg" x="${x0}" y="${yb - h}" width="${gw}" height="${h}" fill="${s.color}" stroke="var(--card)" stroke-width="1"/>`;
+        acc += v;
+      });
+    } else {
+      const bw = (gw - 2 * (series.length - 1)) / series.length;
+      series.forEach((s, si) => {
+        const v = s.values[i]; if (!v) return;
+        g += `<path class="seg" d="${barPath(x0 + si * (bw + 2), y0, bw, Math.abs(y(v) - y0), v > 0)}" fill="${s.color}"/>`;
+      });
+    }
+    const tip = monthTip(lab, series.map(s => ({ color: s.color, name: s.name, v: s.values[i] })).filter(s => s.v || !stacked), stacked);
+    g += `<rect class="hit" data-tip="${addTip(tip)}" x="${m.l + i * band}" y="${m.t}" width="${band}" height="${ih}"/>`;
+  });
+  g += `<line class="baseline" x1="${m.l}" x2="${W - m.r}" y1="${y0}" y2="${y0}"/>`;
+  return svg(W, H, g);
+}
+
+function lineChart(labels, series, W) {
+  const direct = series.length > 1 && series.length <= 4 && W > 420;
+  const H = 250, m = { l: 56, r: direct ? 92 : 14, t: 12, b: 28 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const vals = series.flatMap(s => s.values);
+  const [lo, hi, ticks] = niceTicks(Math.min(0, ...vals), Math.max(0, ...vals));
+  const y = v => m.t + ih - (v - lo) / (hi - lo) * ih;
+  const n = labels.length, x = i => n === 1 ? m.l + iw / 2 : m.l + i * iw / (n - 1);
+  let g = yAxis(ticks, y, m, W) + xAxis(labels, x, m, H, iw);
+  g += `<line class="baseline" x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}"/>`;
+  const step = n === 1 ? iw : iw / (n - 1);
+  labels.forEach((lab, i) => {
+    const tip = monthTip(lab, series.map(s => ({ color: s.color, name: s.name, v: s.values[i] })).sort((a, b) => b.v - a.v));
+    g += `<g class="col"><line class="guide" x1="${x(i)}" x2="${x(i)}" y1="${m.t}" y2="${m.t + ih}"/><rect class="hit" data-tip="${addTip(tip)}" x="${x(i) - step / 2}" y="${m.t}" width="${step}" height="${ih}"/></g>`;
+  });
+  series.forEach(s => {
+    g += `<path d="M${s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("L")}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>`;
+    if (n <= 24) g += s.values.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="${s.color}" stroke="var(--card)" stroke-width="2" pointer-events="none"/>`).join("");
+  });
+  if (direct) {
+    const ends = series.map(s => ({ name: s.name, y: y(s.values[n - 1]) })).sort((a, b) => a.y - b.y);
+    for (let i = 1; i < ends.length; i++) ends[i].y = Math.max(ends[i].y, ends[i - 1].y + 14);
+    g += ends.map(e => `<text class="lbl" x="${x(n - 1) + 10}" y="${e.y + 4}">${esc(e.name.length > 12 ? e.name.slice(0, 11) + "…" : e.name)}</text>`).join("");
+  }
+  return svg(W, H, g);
+}
+
+function hbarChart(items, W, color) {
+  const rowH = 30, lw = Math.min(130, W * 0.32), vr = 78, iw = Math.max(40, W - lw - vr - 8), H = items.length * rowH + 4;
+  const max = Math.max(...items.map(d => d.value)), total = items.reduce((s, d) => s + d.value, 0);
+  const g = items.map((d, i) => {
+    const y = i * rowH + 4, w = Math.max(2, d.value / max * iw), bh = 14, by = y + (rowH - bh) / 2 - 2;
+    const r = Math.min(4, w, bh / 2);
+    const name = d.label.length > 16 ? d.label.slice(0, 15) + "…" : d.label;
+    const tip = `<b>${esc(d.label)}</b>${tipRow(d.color || color, "Total", d.value)}<div class="tt-row">Share<span>${(d.value / total * 100).toFixed(1)}%</span></div>`;
+    return `<g class="hrow"><text class="lbl" x="${lw - 8}" y="${by + bh - 2}" text-anchor="end">${esc(name)}</text>
+      <path class="hbar" d="M${lw},${by}H${lw + w - r}Q${lw + w},${by} ${lw + w},${by + r}V${by + bh - r}Q${lw + w},${by + bh} ${lw + w - r},${by + bh}H${lw}Z" fill="${d.color || color}"/>
+      <text class="val" x="${lw + w + 6}" y="${by + bh - 2}">${fmtShort(d.value)}</text>
+      <rect class="hit" data-tip="${addTip(tip)}" x="0" y="${y}" width="${W}" height="${rowH}"/></g>`;
+  }).join("");
+  return svg(W, H, `<line class="baseline" x1="${lw}" x2="${lw}" y1="0" y2="${H}"/>` + g);
+}
+
+function donutChart(items, W) {
+  const size = Math.min(210, Math.max(150, W * 0.42)), R = size / 2, r = R * 0.6;
+  const total = items.reduce((s, d) => s + d.value, 0);
+  const p = (a, rad) => `${(R + rad * Math.sin(a)).toFixed(2)},${(R - rad * Math.cos(a)).toFixed(2)}`;
+  let a = 0, g = "";
+  items.forEach(d => {
+    const a1 = a + Math.min(d.value / total * 2 * Math.PI, 2 * Math.PI - 1e-4), large = a1 - a > Math.PI ? 1 : 0;
+    const tip = `<b>${esc(d.label)}</b>${tipRow(d.color, "Total", d.value)}<div class="tt-row">Share<span>${(d.value / total * 100).toFixed(1)}%</span></div>`;
+    g += `<path class="seg" data-tip="${addTip(tip)}" d="M${p(a, R)}A${R},${R} 0 ${large} 1 ${p(a1, R)}L${p(a1, r)}A${r},${r} 0 ${large} 0 ${p(a, r)}Z" fill="${d.color}" stroke="var(--card)" stroke-width="2"/>`;
+    a = a1;
+  });
+  g += `<text class="lbl" x="${R}" y="${R - 4}" text-anchor="middle">Total</text><text class="val" x="${R}" y="${R + 14}" text-anchor="middle" style="font-weight:700;font-size:15px">${fmtShort(total)}</text>`;
+  const legend = `<ul class="legend-list">${items.map(d => `<li><i style="background:${d.color}"></i><span>${esc(d.label)}</span><span class="num">${fmt(d.value)}</span><span class="num muted small" style="width:44px">${(d.value / total * 100).toFixed(0)}%</span></li>`).join("")}</ul>`;
+  return `<div class="donut-wrap">${svg(size, size, g)}${legend}</div>`;
+}
+
+const tableHTML = (head, rows) => `<div style="overflow-x:auto"><table><thead><tr>${head.map((h, i) => `<th class="${i ? "num" : ""}">${esc(h)}</th>`).join("")}</tr></thead>
+  <tbody>${rows.map(r => `<tr>${r.map((c, i) => `<td class="${i ? "num" : ""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+
+// ---------- analytics data ----------
+function presetRange(p) {
+  if (p === "12m") return { from: shiftMonth(thisMonth, -11), to: thisMonth };
+  if (p === "ytd") return { from: thisMonth.slice(0, 4) + "-01", to: thisMonth };
+  if (p === "all") {
+    const ms = S.tx.map(t => t.date.slice(0, 7)).sort();
+    return ms.length ? { from: ms[0], to: ms[ms.length - 1] > thisMonth ? ms[ms.length - 1] : thisMonth } : { from: thisMonth, to: thisMonth };
+  }
+  return { from: shiftMonth(thisMonth, -5), to: thisMonth };
+}
+const rangeTx = () => S.tx.filter(t => { const m = t.date.slice(0, 7); return m >= S.range.from && m <= S.range.to; });
+const measureType = w => w.measure === "income" ? "income" : "expense";
+const inFilter = w => t => t.type === measureType(w) && (!w.categories?.length || w.categories.includes(t.category));
+
+// keep at most 8 groups (7 + Other); colors follow the category's place in your category list, not its rank
+function foldCategories(totals, type) {
+  const names = Object.keys(totals).sort((a, b) => totals[b] - totals[a]);
+  const top = names.length > 8 ? names.slice(0, 7) : names, rest = names.slice(top.length);
+  const order = S.cats[type], byOrder = [...top].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  const color = Object.fromEntries(byOrder.map((c, i) => [c, slot(i)]));
+  return { top, rest, color, byOrder };
+}
+
+function monthSeries(w, txs, months) {
+  const idx = Object.fromEntries(months.map((m, i) => [m, i]));
+  const sumBy = pred => { const v = months.map(() => 0); txs.forEach(t => { if (pred(t)) v[idx[t.date.slice(0, 7)]] += +t.amount; }); return v.map(x => Math.round(x * 100) / 100); };
+  if (w.measure === "both") return [
+    { name: "Income", color: slot(0), values: sumBy(t => t.type === "income") },
+    { name: "Expenses", color: slot(1), values: sumBy(t => t.type === "expense") }];
+  if (w.measure === "net") {
+    const i = sumBy(t => t.type === "income"), e = sumBy(t => t.type === "expense");
+    return [{ name: "Net", color: slot(0), values: i.map((v, k) => Math.round((v - e[k]) * 100) / 100) }];
+  }
+  const f = inFilter(w), type = measureType(w);
+  if (!w.split) return [{ name: type === "income" ? "Income" : "Expenses", color: slot(type === "income" ? 0 : 1), values: sumBy(f) }];
+  const totals = {};
+  txs.filter(f).forEach(t => totals[t.category] = (totals[t.category] || 0) + +t.amount);
+  const { rest, color, byOrder } = foldCategories(totals, type);
+  const out = byOrder.map(c => ({ name: c, color: color[c], values: sumBy(t => f(t) && t.category === c) }));
+  if (rest.length) out.push({ name: "Other", color: "var(--other)", values: sumBy(t => f(t) && rest.includes(t.category)) });
+  return out;
+}
+
+function categoryItems(w, txs) {
+  const totals = {}, f = inFilter(w);
+  txs.filter(f).forEach(t => totals[t.category] = (totals[t.category] || 0) + +t.amount);
+  const { top, rest, color } = foldCategories(totals, measureType(w));
+  const items = top.map(c => ({ label: c, value: totals[c], color: color[c] }));
+  if (rest.length) items.push({ label: `Other (${rest.length})`, value: rest.reduce((s, c) => s + totals[c], 0), color: "var(--other)" });
+  return items;
+}
+
+function describe(w) {
+  const m = { expense: "Expenses", income: "Income", net: "Net", both: "Income vs expenses" }[w.measure];
+  const parts = [m, w.groupBy === "month" ? "by month" : "by category"];
+  if (w.split && w.groupBy === "month") parts.push("split by category");
+  if (w.categories?.length) parts.push(w.categories.length <= 3 ? w.categories.join(", ") : `${w.categories.length} categories`);
+  return parts.join(" · ");
+}
+
+// ---------- analytics render ----------
+function renderAnalytics() {
+  TIPS.length = 0;
+  if (!S.range) S.range = presetRange(S.preset);
+  $("#rFrom").value = S.range.from; $("#rTo").value = S.range.to;
+  $$("[data-preset]").forEach(b => b.setAttribute("aria-pressed", b.dataset.preset === S.preset));
+  const months = monthsBetween(S.range.from, S.range.to), txs = rangeTx();
+  const sum = type => txs.filter(t => t.type === type).reduce((s, t) => s + +t.amount, 0);
+  const inc = sum("income"), exp = sum("expense"), net = inc - exp;
+  const kpi = (label, value, cls = "") => `<div class="card stat"><div class="label">${label}</div><div class="value ${cls}">${value}</div></div>`;
+  $("#kpis").innerHTML =
+    kpi("Income", fmt(inc), "inc") + kpi("Expenses", fmt(exp), "exp") + kpi("Net", fmt(net), net >= 0 ? "inc" : "exp") +
+    kpi("Savings rate", inc ? (net / inc * 100).toFixed(1) + "%" : "—") + kpi(`Avg monthly spend (${months.length} mo)`, fmt(exp / months.length));
+
+  const dash = $("#dash");
+  if (!S.dash.length) { dash.innerHTML = `<div class="card empty full">No charts yet. Use “+ Add chart” to build your dashboard.</div>`; return; }
+  dash.innerHTML = S.dash.map(w => `<article class="card ${w.size === "full" ? "full" : ""}" data-w="${w.id}">
+    <header class="w-head"><h3>${esc(w.title)}</h3><div class="w-tools">
+      <button class="icon" data-wact="table">${S.tables.has(w.id) ? "Chart" : "Table"}</button>
+      <button class="icon" data-wact="up" title="Move up">↑</button><button class="icon" data-wact="down" title="Move down">↓</button>
+      <button class="icon" data-wact="edit" title="Edit chart">✎</button><button class="icon" data-wact="remove" title="Remove chart">✕</button>
+    </div></header><p class="w-sub">${esc(describe(w))}</p><div class="w-body"></div></article>`).join("");
+  S.dash.forEach((w, i) => renderWidget(w, dash.children[i], txs, months));
+}
+
+function renderWidget(w, card, txs, months) {
+  const body = $(".w-body", card), W = Math.max(260, Math.floor(body.clientWidth));
+  const asTable = S.tables.has(w.id);
+  if (w.groupBy === "category") {
+    const items = categoryItems(w, txs);
+    if (!items.length) { body.innerHTML = `<p class="empty">No ${w.measure === "income" ? "income" : "expenses"} in this range.</p>`; return; }
+    const total = items.reduce((s, d) => s + d.value, 0);
+    body.innerHTML = asTable
+      ? tableHTML(["Category", "Amount", "Share"], items.map(d => [esc(d.label), fmt(d.value), (d.value / total * 100).toFixed(1) + "%"]))
+      : w.chart === "donut" ? donutChart(items, W)
+      : hbarChart(items.map(d => ({ ...d, color: d.label.startsWith("Other") ? "var(--other)" : null })), W, slot(w.measure === "income" ? 0 : 1));
+    return;
+  }
+  const series = monthSeries(w, txs, months);
+  if (series.every(s => s.values.every(v => !v))) { body.innerHTML = `<p class="empty">Nothing to show in this range.</p>`; return; }
+  body.innerHTML = asTable
+    ? tableHTML(["Month", ...series.map(s => s.name)], months.map((m, i) => [monthLabel(m), ...series.map(s => fmt(s.values[i]))]))
+    : legendHTML(series) + (w.chart === "line" ? lineChart(months, series, W) : barChart(months, series, W, w.split));
+}
+
+async function saveDash() {
+  try { setState(await api("PUT", "/api/dashboard", { widgets: S.dash })); } catch (e) { alert(e.message); }
+  renderAnalytics();
+}
+
+$("#dash").addEventListener("click", e => {
+  const b = e.target.closest("[data-wact]"); if (!b) return;
+  const id = b.closest("[data-w]").dataset.w, i = S.dash.findIndex(w => w.id === id), act = b.dataset.wact;
+  if (act === "table") { S.tables.has(id) ? S.tables.delete(id) : S.tables.add(id); renderAnalytics(); }
+  if (act === "edit") openEditor(S.dash[i]);
+  if (act === "remove" && confirm(`Remove “${S.dash[i].title}”?`)) { S.dash.splice(i, 1); saveDash(); }
+  if (act === "up" && i > 0) { [S.dash[i - 1], S.dash[i]] = [S.dash[i], S.dash[i - 1]]; saveDash(); }
+  if (act === "down" && i < S.dash.length - 1) { [S.dash[i + 1], S.dash[i]] = [S.dash[i], S.dash[i + 1]]; saveDash(); }
+});
+$$("[data-preset]").forEach(b => b.addEventListener("click", () => {
+  S.preset = b.dataset.preset; S.range = presetRange(S.preset);
+  store.set("preset", S.preset); store.set("range", S.range); renderAnalytics();
+}));
+["#rFrom", "#rTo"].forEach(sel => $(sel).addEventListener("change", () => {
+  const a = $("#rFrom").value, b = $("#rTo").value; if (!a || !b) return;
+  S.range = a <= b ? { from: a, to: b } : { from: b, to: a }; S.preset = "custom";
+  store.set("preset", S.preset); store.set("range", S.range); renderAnalytics();
+}));
+$("#addW").addEventListener("click", () => openEditor(null));
+$("#resetDash").addEventListener("click", () => {
+  if (!confirm("Replace your charts with the default set?")) return;
+  S.dash = [
+    { id: "w1", title: "Income vs expenses", measure: "both", groupBy: "month", chart: "bar", split: false, categories: [], size: "full" },
+    { id: "w2", title: "Net by month", measure: "net", groupBy: "month", chart: "line", split: false, categories: [], size: "half" },
+    { id: "w3", title: "Spending by category", measure: "expense", groupBy: "category", chart: "bar", split: false, categories: [], size: "half" },
+    { id: "w4", title: "Spending trend by category", measure: "expense", groupBy: "month", chart: "line", split: true, categories: [], size: "full" }];
+  saveDash();
+});
+let resizeT; addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => S.tab === "analytics" && renderAnalytics(), 150); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => S.tab === "analytics" && renderAnalytics());
+
+// tooltip
+document.addEventListener("mousemove", e => {
+  const el = e.target.closest?.("[data-tip],[data-tt]"), tt = $("#tooltip");
+  if (!el) { tt.hidden = true; return; }
+  tt.innerHTML = el.dataset.tt !== undefined ? esc(el.dataset.tt).replace(/\|/g, "<br>").replace(/^([^<]*)/, "<b>$1</b>") : TIPS[+el.dataset.tip] ?? "";
+  tt.hidden = false;
+  const r = tt.getBoundingClientRect(), pad = 14;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - pad;
+  tt.style.left = x + "px"; tt.style.top = y + "px";
+});
+
+// chart editor
+const F = () => $("#wform").elements;
+function openEditor(w) {
+  S.editW = w ? w.id : null;
+  const d = w || { title: "", measure: "expense", groupBy: "month", chart: "bar", split: false, categories: [], size: "half" };
+  $("#wdlgTitle").textContent = w ? "Edit chart" : "Add chart";
+  const f = F();
+  f.wtitle.value = d.title; f.measure.value = d.measure; f.groupBy.value = d.groupBy;
+  f.chart.value = d.chart; f.split.checked = !!d.split; f.size.value = d.size || "half";
+  const box = $("#catBox"); delete box.dataset.type; box.dataset.chosen = JSON.stringify(d.categories || []);
+  syncEditor(); $("#wdlg").showModal();
+}
+function syncEditor() {
+  const f = F(), byCat = f.groupBy.value === "category";
+  [...f.measure.options].forEach(o => o.disabled = byCat && (o.value === "net" || o.value === "both"));
+  if (f.measure.selectedOptions[0].disabled) f.measure.value = "expense";
+  [...f.chart.options].forEach(o => o.disabled = byCat ? o.value === "line" : o.value === "donut");
+  if (f.chart.selectedOptions[0].disabled) f.chart.value = "bar";
+  const typed = f.measure.value === "expense" || f.measure.value === "income";
+  $("#splitRow").hidden = byCat || !typed;
+  $("#catRow").hidden = !typed;
+  const box = $("#catBox");
+  if (typed && box.dataset.type !== f.measure.value) {
+    const chosen = box.dataset.type === undefined ? JSON.parse(box.dataset.chosen || "[]") : [];
+    box.dataset.type = f.measure.value;
+    box.innerHTML = S.cats[f.measure.value].map(c => `<label class="chk"><input type="checkbox" value="${esc(c)}" ${chosen.includes(c) ? "checked" : ""}>${esc(c)}</label>`).join("");
+  }
+}
+["measure", "groupBy"].forEach(n => F()[n].addEventListener("change", syncEditor));
+$("#wCancel").addEventListener("click", () => $("#wdlg").close());
+$("#wform").addEventListener("submit", e => {
+  e.preventDefault();
+  const f = F(), typed = !$("#catRow").hidden;
+  const w = {
+    id: S.editW || "w" + Date.now().toString(36),
+    measure: f.measure.value, groupBy: f.groupBy.value, chart: f.chart.value, size: f.size.value,
+    split: !$("#splitRow").hidden && f.split.checked,
+    categories: typed ? $$("#catBox input:checked").map(i => i.value) : [],
+  };
+  w.title = f.wtitle.value.trim() || describe(w);
+  const i = S.dash.findIndex(x => x.id === w.id);
+  if (i >= 0) S.dash[i] = w; else S.dash.push(w);
+  $("#wdlg").close(); saveDash();
+});
+
+// ---------- work planner ----------
+const pad2 = n => String(n).padStart(2, "0");
+const isoOf = (y, m, d) => `${y}-${pad2(m + 1)}-${pad2(d)}`;
+const fmt0 = n => n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: Number.isInteger(n) ? 0 : 2 });
+const longDate = iso => new Date(iso + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+S.wmode = "plan";
+
+function kindOf(iso) {
+  const s = S.work.settings;
+  if (iso < s.start || iso > s.end || s.off[iso]) return null;
+  const wd = new Date(iso + "T12:00").getDay();
+  if (wd === 0 || wd === 6) return null;
+  return s.half[iso] ? "half" : "full";
+}
+const statusOf = iso => S.work.days[iso]?.status || "open";
+const dayRate = kind => +(kind === "half" ? S.work.settings.halfRate : S.work.settings.rate);
+// mirrors compute_pay() on the server: hourly basis + hours logged -> hours x rate, else flat day rate
+const computePay = (kind, note) => {
+  const h = S.work.settings.payBasis === "hourly" ? noteHours(note) : null;
+  return h ? Math.round(h * S.work.settings.hourly * 100) / 100 : dayRate(kind);
+};
+const payOf = (iso, kind) => statusOf(iso) === "worked" ? +S.work.days[iso].pay : computePay(kind, S.work.days[iso]?.note);
+const fmtH = h => (Math.round(h * 100) / 100).toString();
+const shortClock = t => { const [h, m] = t.split(":").map(Number); return `${(h % 12) || 12}${m ? ":" + String(m).padStart(2, "0") : ""}`; };
+const clock = t => { const [h, m] = t.split(":").map(Number); return `${(h % 12) || 12}:${String(m).padStart(2, "0")}${h < 12 ? "a" : "p"}`; };
+const rateStr = r => fmt(r) + "/hr";
+
+function workModel() {
+  const s = S.work.settings, m = { worked: [0, 0], planned: [0, 0], open: [0, 0], passed: [0, 0], confirm: [], full: 0, half: 0, hours: 0, hoursPay: 0 };
+  for (let d = new Date(s.start + "T12:00"); ; d.setDate(d.getDate() + 1)) {
+    const iso = isoOf(d.getFullYear(), d.getMonth(), d.getDate());
+    if (iso > s.end) break;
+    const kind = kindOf(iso); if (!kind) continue;
+    const st = statusOf(iso), pay = payOf(iso, kind), future = iso >= today;
+    const bucket = st === "worked" ? "worked" : future ? st : "passed";
+    m[bucket][0]++; m[bucket][1] += pay;
+    if (st === "worked") { const h = noteHours(S.work.days[iso].note); if (h) { m.hours += h; m.hoursPay += pay; } }
+    if (!future && st === "planned") m.confirm.push(iso);
+    if (future && st !== "worked") m[kind]++;
+  }
+  return m;
+}
+
+function renderWork() {
+  const s = S.work.settings, m = workModel();
+  const left = m.planned[1] + m.open[1], leftDays = m.planned[0] + m.open[0];
+  const season = left + m.worked[1] + m.passed[1];
+  const endLabel = new Date(s.end + "T12:00").toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+  $("#wLabel").textContent = `${s.name} · still available this school year`;
+  $("#wHero").textContent = fmt0(left);
+  $("#wHeroSub").textContent = `${leftDays} school days left (${m.full} full, ${m.half} half) through ${endLabel}`;
+  const stat = (label, v, sub, cls = "") => `<div class="stat"><div class="label">${label}</div><div class="value ${cls}">${fmt0(v)}</div><div class="muted small">${sub}</div></div>`;
+  $("#wStats").innerHTML =
+    stat("Earned", m.worked[1], `${m.worked[0]} day${m.worked[0] === 1 ? "" : "s"} worked`, "inc") +
+    stat("Planned ahead", m.planned[1], `${m.planned[0]} day${m.planned[0] === 1 ? "" : "s"}`) +
+    stat("Projected total", m.worked[1] + m.planned[1], "earned + planned") +
+    `<div class="stat"><div class="label">Hours worked</div><div class="value">${fmtH(m.hours)}</div><div class="muted small">${m.hours ? rateStr(m.hoursPay / m.hours) + " effective" : s.payBasis === "hourly" ? `at ${rateStr(s.hourly)}` : "no hours logged"}</div></div>`;
+  const segs = [["worked", "Earned"], ["planned", "Planned"], ["open", "Not planned yet"], ["passed", "Passed, not worked"]];
+  $("#wBar").innerHTML = season ? segs.filter(([k]) => m[k][1] > 0).map(([k, l]) =>
+    `<div class="seg-${k}" style="flex:${m[k][1]} 1 0" data-tt="${l}|${m[k][0]} days · ${fmt0(m[k][1])} · ${(m[k][1] / season * 100).toFixed(0)}% of season"></div>`).join("") : "";
+  $("#wKey").innerHTML = segs.map(([k, l]) => `<span><i class="seg-${k}"></i>${l}<b>${fmt0(m[k][1])}</b></span>`).join("") + `<span>Season max<b>${fmt0(season)}</b></span>`;
+  $("#wNotice").innerHTML = m.confirm.length ? `<div class="notice"><span>${m.confirm.length} planned day${m.confirm.length > 1 ? "s have" : " has"} passed: ${m.confirm.map(longDate).join(", ")}. Did you work ${m.confirm.length > 1 ? "them" : "it"}?</span>
+    <button class="primary" data-confirm="worked">Mark worked</button><button data-confirm="open">Didn't work</button></div>` : "";
+
+  $$("[data-wmode]").forEach(b => b.setAttribute("aria-pressed", b.dataset.wmode === S.wmode));
+  $("#wHint").textContent = S.wmode === "plan"
+    ? "Click any day to schedule it, log it as worked, or edit its time frame and hours. Drag across future days to schedule several at once."
+    : "Click a day to cycle: school day → half day → no school.";
+  $("#wMonths").classList.toggle("cal-edit", S.wmode === "edit");
+  renderMonths();
+  renderLog();
+
+  const f = $("#wForm").elements;
+  if (!$("#wSettings").contains(document.activeElement)) {
+    ["name", "rate", "halfRate", "start", "end", "category", "payBasis", "dayHours", "dayStart", "dayEnd", "dayBreak"].forEach(k => f[k].value = s[k] ?? "");
+    f.hourly.value = (+s.hourly).toFixed(2);
+    syncDerive();
+  }
+  $("#incCats").innerHTML = S.cats.income.map(c => `<option value="${esc(c)}">`).join("");
+}
+
+function renderMonths() {
+  const s = S.work.settings, out = [];
+  let [y, mo] = s.start.split("-").map(Number); mo--;
+  const [ey, em] = s.end.split("-").map(Number);
+  while (y < ey || (y === ey && mo <= em - 1)) {
+    const days = new Date(y, mo + 1, 0).getDate();
+    let cells = "", left = 0, canPlan = 0, canClear = 0, planned = 0, total = 0;
+    const firstWd = new Date(y, mo, 1).getDay();
+    const lead = firstWd === 0 || firstWd === 6 ? 0 : firstWd - 1;
+    cells += `<div></div>`.repeat(lead);
+    for (let d = 1; d <= days; d++) {
+      const wd = new Date(y, mo, d).getDay(); if (wd === 0 || wd === 6) continue;
+      const iso = isoOf(y, mo, d), kind = kindOf(iso), inRange = iso >= s.start && iso <= s.end;
+      const cls = ["day"]; let tt = longDate(iso);
+      if (!inRange) cls.push("na");
+      else if (!kind) { cls.push("off"); tt += `|${s.off[iso]}`; }
+      else {
+        const st = statusOf(iso), pay = payOf(iso, kind), future = iso >= today;
+        total++;
+        if (kind === "half") cls.push("half");
+        if (!future) cls.push("past");
+        if (st !== "open") cls.push(st);
+        if (future && st !== "worked") left += pay;
+        if (future && st === "open") canPlan++;
+        if (future && st === "planned") canClear++;
+        if (st !== "open") planned++;
+        tt += `|${kind === "half" ? (s.half[iso] || "Half day") : "Full day"} · ${fmt0(pay)}|` +
+          ({ worked: "Worked ✓", planned: future ? "Planned" : "Planned (passed, needs confirming)", open: future ? "Open" : "Not worked" })[st];
+        const n = noteOf(iso);
+        if (n) {
+          cls.push("has-note");
+          const h = noteHours(n);
+          if (n.school) tt += `|${n.school}`;
+          if (n.start || n.end) tt += `|${n.start || "?"}–${n.end || "?"}${+n.break ? `, ${n.break} min break` : ""}`;
+          if (h) tt += `|${fmtH(h)} h · ${rateStr(pay / h)}`;
+          if (n.teacher) tt += `|${n.teacher}`;
+        }
+      }
+      if (iso === today) cls.push("today");
+      const n = kind && statusOf(iso) !== "open" ? noteOf(iso) : null;
+      const span = n?.hours && +n.hours !== timeHours({ ...n, hours: "" }) ? `${fmtH(+n.hours)}h`
+        : n?.start && n?.end ? `${shortClock(n.start)}–${shortClock(n.end)}` : "";
+      cells += `<button class="${cls.join(" ")}" data-d="${iso}" data-tt="${esc(tt)}" ${!inRange ? "tabindex=-1" : ""}><span>${d}</span>${span ? `<span class="dt">${span}</span>` : ""}</button>`;
+    }
+    const name = new Date(y, mo, 15).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    const btn = S.wmode !== "plan" ? "" : canPlan ? `<button class="icon" data-month="${y}-${pad2(mo + 1)}" data-to="planned">Plan all</button>`
+      : canClear ? `<button class="icon" data-month="${y}-${pad2(mo + 1)}" data-to="open">Clear</button>` : "";
+    out.push(`<div class="card"><div class="mhead"><h3>${name}</h3>${btn}</div>
+      <div class="msub">${left ? fmt0(left) + " left" : "nothing left"} · ${planned} of ${total} days booked</div>
+      <div class="wk">${["M", "T", "W", "T", "F"].map(x => `<div class="dow">${x}</div>`).join("")}${cells}</div></div>`);
+    if (++mo === 12) { mo = 0; y++; }
+  }
+  $("#wMonths").innerHTML = out.join("");
+}
+
+async function workChange(changes) {
+  if (!Object.keys(changes).length) return;
+  try { setState(await api("POST", "/api/work/days", { changes })); } catch (e) { alert(e.message); }
+  renderWork();
+}
+async function workSettings(patch) {
+  const s = { ...S.work.settings, ...patch };
+  try { setState(await api("PUT", "/api/work/settings", s)); fillCategories(); return true; }
+  catch (e) { alert(e.message); return false; }
+  finally { renderWork(); }
+}
+
+
+function clickDay(iso) {
+  if (S.wmode === "edit") {
+    const s = S.work.settings;
+    if (iso < s.start || iso > s.end) return;
+    const off = { ...s.off }, half = { ...s.half };
+    if (off[iso]) delete off[iso];
+    else if (half[iso]) { delete half[iso]; off[iso] = "No school"; }
+    else half[iso] = "Half day";
+    return workSettings({ off, half });
+  }
+  if (kindOf(iso)) openDay(iso);
+}
+
+// ---------- day details ----------
+const noteOf = iso => S.work.days[iso]?.note;
+// typed-in hours win; otherwise end - start - unpaid break
+function timeHours(n) {
+  if (!n?.start || !n?.end) return null;
+  const [a, b] = [n.start, n.end].map(t => { const [h, m] = t.split(":").map(Number); return h * 60 + m; });
+  const mins = b - a - (+n.break || 0);
+  return mins > 0 ? Math.round(mins / 60 * 100) / 100 : null;
+}
+const noteHours = n => (+n?.hours > 0 ? Math.round(+n.hours * 100) / 100 : timeHours(n));
+function knownSchools() {
+  const map = {};
+  Object.keys(S.work.days).sort().forEach(iso => { const n = noteOf(iso); if (n?.school) map[n.school] = n; });
+  return map;
+}
+let dIso = null, dSt = "open", dPrefilled = false;
+// which statuses a date can have: future days can be scheduled, today/past days can be logged as worked
+const statusChoices = iso => iso > today ? [["open", "Open"], ["planned", "Scheduled"]]
+  : iso === today ? [["open", "Open"], ["planned", "Scheduled"], ["worked", "Worked ✓"]]
+  : [["open", "Didn't work"], ...(statusOf(iso) === "planned" ? [["planned", "Scheduled"]] : []), ["worked", "Worked ✓"]];
+
+// your usual times; a half day is the first half of a standard day with no break
+function usualTimes(kind) {
+  const s = S.work.settings; if (!s.dayStart) return {};
+  if (kind !== "half") return { start: s.dayStart, end: s.dayEnd || "", break: s.dayBreak ? String(s.dayBreak) : "" };
+  const [h, m] = s.dayStart.split(":").map(Number), end = h * 60 + m + Math.round(s.dayHours * 30);
+  return { start: s.dayStart, end: `${pad2(Math.floor(end / 60) % 24)}:${pad2(end % 60)}`, break: "" };
+}
+
+function openDay(iso) {
+  dIso = iso;
+  const st = statusOf(iso), kind = kindOf(iso), f = $("#dform").elements;
+  let n = noteOf(iso) || {};
+  dPrefilled = !n.start && !n.end && !n.hours;
+  if (dPrefilled) n = { ...n, ...usualTimes(kind) };
+  $("#dTitle").textContent = new Date(iso + "T12:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  $("#dSub").textContent = kind === "half" ? (S.work.settings.half[iso] || "Half day") : "Full day";
+  NOTE_KEYS.forEach(k => f[k].value = n[k] || "");
+  // hours typed by hand (different from what the times give) stay put; otherwise they follow the times
+  f.hours.dataset.manual = n.hours && +n.hours !== timeHours({ ...n, hours: "" }) ? "1" : "";
+  if (!f.hours.dataset.manual) f.hours.value = timeHours(n) ?? (n.hours || "");
+  $("#schoolList").innerHTML = Object.keys(knownSchools()).map(sc => `<option value="${esc(sc)}">`).join("");
+  // a brand-new day defaults to the status you most likely want
+  setDayStatus(st !== "open" ? st : iso > today ? "planned" : "worked");
+  $("#ddlg").showModal();
+}
+function setDayStatus(st) {
+  dSt = st;
+  const choices = statusChoices(dIso);
+  $("#dSeg").innerHTML = choices.map(([v, l]) => `<button type="button" data-st="${v}" aria-pressed="${v === st}">${l}</button>`).join("");
+  $("#dFields").disabled = st === "open";
+  const was = statusOf(dIso);
+  const pre = dPrefilled ? " Prefilled with your usual times; adjust them for this assignment." : "";
+  $("#dHint").textContent =
+    st === "open" ? (noteOf(dIso) ? "Saving clears this day's schedule and details." : "Not scheduled.")
+    : st === "worked" ? (was === "worked" ? "Logged in Entries. Changing the hours updates the pay." : "Saving logs this pay as income in Entries.") + pre
+    : pre.trim();
+  updatePayBox();
+}
+$("#dSeg").addEventListener("click", e => { const b = e.target.closest("[data-st]"); if (b) setDayStatus(b.dataset.st); });
+const NOTE_KEYS = ["school", "address", "start", "end", "break", "hours", "teacher", "notes"];
+const formNote = () => { const f = $("#dform").elements, n = {}; NOTE_KEYS.forEach(k => n[k] = f[k].value); return n; };
+
+function updatePayBox() {
+  const iso = dIso, kind = kindOf(iso), s = S.work.settings, n = formNote(), h = noteHours(n);
+  const box = $("#dPay");
+  if (dSt === "open") { box.innerHTML = `<span class="muted">No pay for an open day</span><b>${fmt(0)}</b>`; return; }
+  if (s.payBasis === "hourly") {
+    box.innerHTML = h
+      ? `<span>${fmtH(h)} h × ${rateStr(s.hourly)}</span><b>${fmt(computePay(kind, n))}</b>`
+      : `<span class="muted">Enter times or hours to be paid hourly. Until then it counts the ${kind === "half" ? "half" : "full"}-day rate.</span><b>${fmt(dayRate(kind))}</b>`;
+  } else {
+    box.innerHTML = `<span>Flat ${kind === "half" ? "half" : "full"}-day rate${h ? ` · works out to ${rateStr(dayRate(kind) / h)} for ${fmtH(h)} h` : ""}</span><b>${fmt(dayRate(kind))}</b>`;
+  }
+}
+const dF = $("#dform").elements;
+["start", "end", "break"].forEach(k => dF[k].addEventListener("input", () => {
+  if (!dF.hours.dataset.manual) { const h = timeHours(formNote()); dF.hours.value = h ?? ""; }
+  updatePayBox();
+}));
+dF.hours.addEventListener("input", () => {
+  const auto = timeHours({ ...formNote(), hours: "" });
+  dF.hours.dataset.manual = dF.hours.value && +dF.hours.value !== auto ? "1" : "";
+  updatePayBox();
+});
+// picking a school you've been to before fills in its address and usual hours
+dF.school.addEventListener("change", e => {
+  const prev = knownSchools()[e.target.value.trim()];
+  if (prev) ["address", "start", "end", "break"].forEach(k => { if (!dF[k].value && prev[k]) dF[k].value = prev[k]; });
+  if (!dF.hours.dataset.manual) dF.hours.value = timeHours(formNote()) ?? "";
+  updatePayBox();
+});
+$("#dClose").addEventListener("click", () => $("#ddlg").close());
+$("#dform").addEventListener("submit", async e => {
+  e.preventDefault();
+  const note = formNote(), iso = dIso, was = statusOf(iso);
+  if (!dF.hours.dataset.manual) note.hours = "";   // derived from times, don't freeze it
+  if (was === "worked" && dSt !== "worked" && !confirm(`Remove ${longDate(iso)} as worked? Its ${fmt(payOf(iso, kindOf(iso)))} income entry will be deleted.`)) return;
+  if (dSt === "open" && noteOf(iso) && was !== "worked" && !confirm("Clear this day's schedule and details?")) return;
+  if (dSt === "open" && was === "open") return $("#ddlg").close();
+  try { setState(await api("POST", "/api/work/day", { date: iso, status: dSt, note })); $("#ddlg").close(); renderWork(); }
+  catch (err) { alert(err.message); }
+});
+$("#logBody").addEventListener("click", e => { const r = e.target.closest("[data-log]"); if (r) openDay(r.dataset.log); });
+
+S.showAllUpcoming = false;
+function logRow(iso) {
+  const n = noteOf(iso) || {}, h = noteHours(n), st = statusOf(iso), p = payOf(iso, kindOf(iso));
+  const due = st === "planned" && iso < today;
+  return `<tr class="log-row" data-log="${iso}"><td style="white-space:nowrap">${due ? `<span class="pill">Confirm</span>` : ""}${longDate(iso)}</td>
+    <td>${esc(n.school || "—")}</td><td>${esc(n.teacher || "")}</td>
+    <td class="muted" style="white-space:nowrap">${n.start && n.end ? `${clock(n.start)}–${clock(n.end)}${+n.break ? ` <span class="small">−${n.break}m</span>` : ""}` : ""}</td>
+    <td class="num">${h ? fmtH(h) : ""}${n.hours && +n.hours !== timeHours({ ...n, hours: "" }) ? ` <span class="small muted" title="Hours entered by hand">edited</span>` : ""}</td><td class="num muted">${h ? rateStr(p / h) : ""}</td>
+    <td class="num ${st === "worked" ? "inc" : "muted"}">${fmt(p)}</td><td class="log-note">${esc(n.notes || n.address || "")}</td></tr>`;
+}
+function renderLog() {
+  const all = Object.keys(S.work.days).filter(iso => kindOf(iso)).sort();
+  const upcoming = all.filter(iso => statusOf(iso) === "planned");
+  const worked = all.filter(iso => statusOf(iso) === "worked").reverse();
+  const shown = S.showAllUpcoming ? upcoming : upcoming.slice(0, 8);
+  const section = (label, extra = "") => `<tr><th colspan="8" style="padding-top:14px">${label}${extra}</th></tr>`;
+  let html = "";
+  if (upcoming.length) {
+    const upPay = upcoming.reduce((a, iso) => a + payOf(iso, kindOf(iso)), 0);
+    html += section(`Scheduled · ${upcoming.length} day${upcoming.length > 1 ? "s" : ""} · ${fmt(upPay)}`) + shown.map(logRow).join("");
+    if (upcoming.length > shown.length || S.showAllUpcoming && upcoming.length > 8)
+      html += `<tr><td colspan="8"><button class="icon" id="toggleUp">${S.showAllUpcoming ? "Show fewer" : `Show all ${upcoming.length} scheduled days`}</button></td></tr>`;
+  }
+  if (worked.length) html += section("Worked") + worked.map(logRow).join("");
+  $("#logBody").innerHTML = html || `<tr><td colspan="8" class="empty">Click any day on the calendar to schedule it or log it as worked, with its time frame and hours.</td></tr>`;
+
+  let hours = 0, hoursPay = 0, pay = 0;
+  worked.forEach(iso => { const p = payOf(iso, kindOf(iso)), h = noteHours(noteOf(iso)); pay += p; if (h) { hours += h; hoursPay += p; } });
+  const missing = worked.filter(iso => !noteHours(noteOf(iso))).length;
+  const upHours = upcoming.filter(iso => iso >= today).reduce((a, iso) => a + (noteHours(noteOf(iso)) || 0), 0);
+  $("#logSum").textContent = [
+    worked.length && `${worked.length} day${worked.length > 1 ? "s" : ""} worked · ${fmt(pay)} earned`,
+    hours && `${fmtH(hours)} hours · ${rateStr(hoursPay / hours)} effective`,
+    missing && `${missing} worked day${missing > 1 ? "s" : ""} missing hours`,
+    upHours && `${fmtH(upHours)} hours scheduled ahead`,
+  ].filter(Boolean).join(" · ");
+}
+$("#logBody").addEventListener("click", e => { if (e.target.id === "toggleUp") { S.showAllUpcoming = !S.showAllUpcoming; renderLog(); } });
+
+// drag to plan/unplan several future days (mouse/pen only so touch can still scroll)
+let drag = null, swallowClick = false;
+const paintable = iso => kindOf(iso) && iso >= today && statusOf(iso) !== "worked" && !noteOf(iso);
+$("#wMonths").addEventListener("pointerdown", e => {
+  const c = e.target.closest(".day[data-d]");
+  if (!c || S.wmode !== "plan" || e.pointerType === "touch" || !paintable(c.dataset.d)) return;
+  drag = { to: statusOf(c.dataset.d) === "planned" ? "open" : "planned", set: new Set([c.dataset.d]), start: c };
+});
+document.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const c = document.elementFromPoint(e.clientX, e.clientY)?.closest?.(".day[data-d]");
+  if (!c || drag.set.has(c.dataset.d) || !paintable(c.dataset.d)) return;
+  if (drag.set.size === 1) drag.start.classList.add(drag.to === "planned" ? "paint-on" : "paint-off");
+  drag.set.add(c.dataset.d);
+  c.classList.add(drag.to === "planned" ? "paint-on" : "paint-off");
+});
+document.addEventListener("pointerup", () => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (d.set.size > 1) { swallowClick = true; workChange(Object.fromEntries([...d.set].map(iso => [iso, d.to]))); }
+});
+$("#wMonths").addEventListener("click", e => {
+  if (swallowClick) { swallowClick = false; return; }
+  const mb = e.target.closest("[data-month]");
+  if (mb) {
+    const to = mb.dataset.to, ch = {};
+    Object.keys(S.work.days).concat(allDaysIn(mb.dataset.month)).forEach(iso => {
+      if (iso.startsWith(mb.dataset.month) && paintable(iso) && statusOf(iso) !== to) ch[iso] = to;
+    });
+    return workChange(ch);
+  }
+  const c = e.target.closest(".day[data-d]"); if (c) clickDay(c.dataset.d);
+});
+function allDaysIn(ym) {
+  const [y, m] = ym.split("-").map(Number), n = new Date(y, m, 0).getDate();
+  return Array.from({ length: n }, (_, i) => isoOf(y, m - 1, i + 1));
+}
+$("#wNotice").addEventListener("click", e => {
+  const b = e.target.closest("[data-confirm]"); if (!b) return;
+  workChange(Object.fromEntries(workModel().confirm.map(iso => [iso, b.dataset.confirm])));
+});
+$$("[data-wmode]").forEach(b => b.addEventListener("click", () => { S.wmode = b.dataset.wmode; renderWork(); }));
+$("#wForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const f = e.target.elements;
+  document.activeElement.blur();
+  const derived = +(+f.rate.value / +f.dayHours.value).toFixed(2);
+  // keep full precision when the rate is exactly the derived one, so a standard day pays exactly the day rate
+  const hourly = +f.hourly.value === derived ? +f.rate.value / +f.dayHours.value : f.hourly.value;
+  const ok = await workSettings({ name: f.name.value, rate: f.rate.value, halfRate: f.halfRate.value, start: f.start.value, end: f.end.value,
+    category: f.category.value, payBasis: f.payBasis.value, dayHours: f.dayHours.value, hourly,
+    dayStart: f.dayStart.value, dayEnd: f.dayEnd.value, dayBreak: f.dayBreak.value || 0 });
+  if (ok) $("#wErr").textContent = "Saved. Logged days were re-priced if pay changed.";
+});
+function syncDerive() {
+  const f = $("#wForm").elements, r = +f.rate.value / +f.dayHours.value;
+  const btn = $("#deriveRate");
+  btn.hidden = !isFinite(r) || r <= 0;
+  btn.textContent = `Use ${fmt(+f.rate.value)} ÷ ${f.dayHours.value} h = ${rateStr(r)}`;
+  ["hourly", "dayHours"].forEach(k => f[k].closest("label").style.opacity = f.payBasis.value === "hourly" ? 1 : .5);
+}
+["rate", "dayHours", "payBasis"].forEach(k => $("#wForm").elements[k].addEventListener("input", syncDerive));
+$("#deriveRate").addEventListener("click", () => {
+  const f = $("#wForm").elements; f.hourly.value = (+f.rate.value / +f.dayHours.value).toFixed(2);
+});
+
+// ---------- money ----------
+S.mMonth = thisMonth;
+const round2 = n => Math.round(n * 100) / 100;
+const mortgageTxIds = () => new Set(S.money.mortgage.payments.map(p => p.tx));
+const workTxIds = () => new Set(Object.values(S.work.days).map(d => d.tx).filter(Boolean));
+
+// average monthly spending over the last 3 full months, leaving out mortgage payments
+function livingAuto() {
+  const from = shiftMonth(thisMonth, -3), skip = mortgageTxIds();
+  const tx = S.tx.filter(t => t.type === "expense" && !skip.has(t.id) && t.date.slice(0, 7) >= from && t.date.slice(0, 7) < thisMonth);
+  return tx.length ? round2(tx.reduce((s, t) => s + +t.amount, 0) / 3) : null;
+}
+const living = () => S.money.plan.living ?? livingAuto() ?? 0;
+const mortgageOut = () => S.money.mortgage.balance > 0 ? S.money.mortgage.payment + S.money.mortgage.escrow : 0;
+const essentials = () => mortgageOut() + living();
+
+// sub-teaching pay expected in a month: scheduled days + a share of still-open days
+function workIncome(ym) {
+  if (!S.work) return 0;
+  let total = 0;
+  for (const iso of allDaysIn(ym)) {
+    const kind = kindOf(iso); if (!kind || iso <= today) continue;
+    const st = statusOf(iso);
+    if (st === "planned") total += payOf(iso, kind);
+    else if (st === "open") total += payOf(iso, kind) * S.money.plan.workShare / 100;
+  }
+  return round2(total);
+}
+
+function forecast() {
+  const { accounts: a, deposit, tenant: t, plan } = S.money;
+  let cash = a.checking + a.savings, dep = deposit.amount;
+  const newStart = shiftMonth(t.moveOutMonth, t.vacancyMonths + 1), rows = [];
+  for (let i = 1; i <= plan.horizon; i++) {
+    const ym = shiftMonth(thisMonth, i);
+    let rent = t.rent, depOut = 0, depIn = 0;
+    if (t.moveOut) {
+      if (ym > t.moveOutMonth && ym < newStart) rent = 0;
+      if (ym === t.moveOutMonth) depOut = dep;
+      if (ym === newStart) depIn = t.newDeposit;
+    }
+    const work = workIncome(ym), mort = mortgageOut(), liv = living();
+    const interest = round2(Math.max(0, cash - a.checking) * a.savingsApy / 1200);
+    const net = round2(rent + work + interest - mort - liv);
+    cash = round2(cash + net + depIn - depOut);
+    dep = round2(dep - depOut + depIn);
+    rows.push({ ym, rent, work, mort, liv, interest, depIn, depOut, net, cash, dep, free: round2(cash - dep) });
+  }
+  return rows;
+}
+
+// month-by-month amortization; extra applies every month from `from` on, lump once at the start
+function amortize(extra = 0, lump = 0, from = "") {
+  const mg = S.money.mortgage, r = mg.rate / 1200;
+  let bal = mg.balance, ym = mg.nextDue, interest = 0, n = 0;
+  const years = {}, pts = [];
+  while (bal > 0.005 && n < 600) {
+    const i = round2(bal * r), p = Math.min(mg.payment - i, bal), x = Math.min((ym >= from ? extra : 0) + (n === 0 ? lump : 0), bal - p);
+    if (p <= 0) return null; // payment doesn't cover interest
+    bal = round2(bal - p - x); interest += i; n++;
+    const y = ym.slice(0, 4), row = years[y] ??= { year: y, payments: 0, principal: 0, extra: 0, interest: 0, balance: 0 };
+    row.payments += p + i; row.principal += p; row.extra += x; row.interest += i; row.balance = bal;
+    pts.push({ ym, bal });
+    ym = shiftMonth(ym, 1);
+  }
+  return { months: n, interest: round2(interest), last: shiftMonth(ym, -1), years: Object.values(years), pts };
+}
+
+const monthName = ym => new Date(ym + "-15T12:00").toLocaleDateString(undefined, { month: "short", year: "numeric" });
+const yrsMos = n => `${Math.floor(n / 12) ? Math.floor(n / 12) + " yr " : ""}${n % 12 ? n % 12 + " mo" : ""}`.trim() || "0 mo";
+const pctBar = (v, target) => `<div class="track"><div style="width:${target > 0 ? Math.max(0, Math.min(100, v / target * 100)) : 100}%"></div></div>`;
+
+function renderMoney() {
+  TIPS.length = 0;
+  const M = S.money, a = M.accounts, cash = a.checking + a.savings, dep = M.deposit.amount, free = round2(cash - dep);
+  const fc = forecast(), next = fc[0], ess = essentials();
+
+  // snapshot
+  $("#mFree").textContent = fmt(free);
+  $("#mFree").className = "hero " + (free < 0 ? "exp" : "");
+  $("#mFreeSub").textContent = `${fmt(cash)} cash on hand (checking ${fmt(a.checking)} + savings ${fmt(a.savings)}) minus ${fmt(dep)} tenant deposit · as of ${longDate(a.asOf)}`;
+  const st = (label, v, sub, cls = "") => `<div class="stat"><div class="label">${label}</div><div class="value ${cls}">${v}</div><div class="muted small">${sub}</div></div>`;
+  const base = S.money.mortgage.balance > 0 ? amortize() : null;
+  $("#mStats").innerHTML =
+    st("Next month's surplus", fmt(next.net), monthName(next.ym), next.net >= 0 ? "inc" : "exp") +
+    st("Debt", fmt(M.mortgage.balance), "mortgage only") +
+    st("Debt-free", base ? monthName(base.last) : "—", base ? yrsMos(base.months) + " to go" : "");
+  $("#mCashBar").innerHTML = cash > 0
+    ? `<div class="seg-deposit" style="flex:${Math.min(dep, cash)} 1 0" data-tt="Tenant's deposit|${fmt(dep)} you'll owe back"></div>` +
+      (free > 0 ? `<div class="seg-free" style="flex:${free} 1 0" data-tt="Free cash|${fmt(free)}"></div>` : `<div class="seg-short" style="flex:${-free} 1 0" data-tt="Short|${fmt(-free)} less than the deposit"></div>`)
+    : "";
+  $("#mCashKey").innerHTML = `<span><i class="seg-deposit"></i>Tenant's deposit<b>${fmt(dep)}</b></span><span><i class="seg-free"></i>Yours<b>${fmt(free)}</b></span>`;
+
+  // every dollar's job
+  const ef = round2(M.plan.efMonths * ess), buffer = Math.min(M.plan.bufferTarget, ef || M.plan.bufferTarget);
+  const minRow = fc.reduce((lo, r) => r.cash - r.dep < lo.cash - lo.dep ? r : lo, fc[0]);
+  const reach = target => free >= target ? "now" : (fc.find(r => r.free >= target)?.ym ?? null);
+  const steps = [
+    { t: "Keep the tenant's deposit covered", v: fmt(dep), have: Math.min(cash, dep), target: dep,
+      s: cash < dep ? `Cash is ${fmt(dep - cash)} short of the deposit.` : minRow.free < 0 ? `Covered now, but the forecast dips ${fmt(-minRow.free)} short in ${monthName(minRow.ym)}.` : `Covered now and through the forecast. Lowest free cash: ${fmt(minRow.free)} in ${monthName(minRow.ym)}.` },
+    { t: "Starter buffer", v: fmt(buffer), have: Math.max(0, free), target: buffer, s: "Covers a surprise bill or a late rent payment without touching the deposit.", eta: reach(buffer) },
+    { t: `Emergency fund: ${M.plan.efMonths} months of essentials`, v: fmt(ef), have: Math.max(0, free), target: ef,
+      s: `Essentials = mortgage ${fmt(mortgageOut())} + living ${fmt(living())} = ${fmt(ess)}/mo. This also covers months with no tenant.`, eta: reach(ef) },
+  ];
+  const efEta = steps[2].eta;
+  const afterEf = efEta === "now" ? fc : efEta ? fc.slice(fc.findIndex(r => r.ym === efEta) + 1) : [];
+  const growthPm = afterEf.length ? round2(afterEf.reduce((s, r) => s + Math.max(0, r.net), 0) / afterEf.length) : 0;
+  const toPrin = round2(growthPm * M.plan.growthSplit / 100), toSave = round2(growthPm - toPrin);
+  const growStart = efEta === "now" ? "" : afterEf[0]?.ym ?? "";
+  const withExtra = toPrin > 0 ? amortize(toPrin, 0, growStart) : null;
+  steps.push({ t: "Grow it", v: growthPm ? `${fmt(growthPm)}/mo` : "—", have: growthPm ? 1 : 0, target: 1, growth: true,
+    s: growthPm
+      ? `Once the emergency fund is full, about ${fmt(growthPm)}/mo is left over. At a <input type="number" min="0" max="100" step="10" data-m="plan.growthSplit" style="width:64px;padding:2px 6px"> % split: ` +
+        `${fmt(toPrin)}/mo extra principal${growStart ? ` starting ${monthName(growStart)}` : ""}${withExtra && base ? ` saves ${fmt(base.interest - withExtra.interest)} interest and pays off ${yrsMos(base.months - withExtra.months)} early` : ""}; ` +
+        `${fmt(toSave)}/mo to high-yield savings earns about ${fmt(toSave * 12 * M.plan.hysaApy / 100 / 2)} in year one, staying available. <button class="hint-btn" id="applyExtra">Use ${fmt(toPrin)}/mo in the mortgage what-if</button>`
+      : efEta ? "Nothing projected beyond the emergency fund within the forecast window yet." : "Starts after the emergency fund is full." });
+  let current = steps.findIndex(s => !s.growth && s.have < s.target - 0.005);
+  if (current < 0) current = 3;
+  $("#mLadder").innerHTML = steps.map((s, i) => `<li class="${i < current ? "done" : i === current ? "now" : ""}">
+    <span class="n">${i < current ? "✓" : i + 1}</span><span class="t">${s.t}</span><span class="v">${s.v}</span>
+    ${s.growth ? "" : pctBar(s.have, s.target)}
+    <span class="s">${s.s}${s.eta && s.eta !== "now" ? ` <b>Projected: ${monthName(s.eta)}.</b>` : s.eta === null && !s.growth ? " <b>Not reached within the forecast window.</b>" : ""}</span></li>`).join("");
+  const need = current < 3 ? steps[current].target - steps[current].have : 0;
+  $("#mNext").innerHTML = `<span>${current < 3
+    ? `<b>Next dollar goes to: ${steps[current].t.toLowerCase()}.</b> ${fmt(need)} to go. At next month's projected surplus of ${fmt(next.net)}, that's ${next.net > 0 ? `about ${Math.ceil(need / next.net)} month${Math.ceil(need / next.net) > 1 ? "s" : ""}` : "not reachable until income exceeds costs"}.`
+    : `<b>Every safety step is funded.</b> Split each month's surplus between extra principal and high-yield savings.`}
+    ${M.plan.living === null && livingAuto() === null ? ` <span class="exp">Living costs aren't set, so the forecast assumes $0. Enter them below or log a few months in Entries.</span>` : ""}</span>`;
+  $$("[data-m='plan.growthSplit']").forEach(el => el.value = M.plan.growthSplit);
+  $("#applyExtra")?.addEventListener("click", () => saveMoney({ plan: { extra: toPrin } }));
+
+  // interest on cash
+  const nowPm = a.savings * a.savingsApy / 1200, hyPm = a.savings * M.plan.hysaApy / 1200, chkPm = Math.max(0, a.checking) * M.plan.hysaApy / 1200;
+  $("#mInterest").innerHTML = `<div class="cmp"><span class="h"></span><span class="h">per month</span><span class="h">per year</span>
+      <span>Savings now at ${a.savingsApy}%</span><span>${fmt(nowPm)}</span><span>${fmt(nowPm * 12)}</span>
+      <span>Same savings at ${M.plan.hysaApy}%</span><span class="inc">${fmt(hyPm)}</span><span class="inc">${fmt(hyPm * 12)}</span>
+      <span>Idle checking at ${M.plan.hysaApy}%</span><span>${fmt(chkPm)}</span><span>${fmt(chkPm * 12)}</span></div>
+    <p class="small" style="margin:0 0 8px">${hyPm - nowPm > 0.005 ? `Moving savings to a ${M.plan.hysaApy}% account is worth <b>${fmt((hyPm - nowPm) * 12)}/yr</b> with no extra effort.` : "Your savings rate already matches the comparison rate."}
+      Keep only what bills need in checking; the rest earns more in savings.</p>
+    <p class="muted small" style="margin:0 0 10px">${a.savingsApy ? "" : "Enter your savings APY to see what it earns now. "}Your mortgage costs ${M.mortgage.rate}%, close to top savings rates, so extra principal and high-yield savings pay back about the same, but savings stays available. Interest is taxable. Mortgage interest on a rental is generally deductible against rent, which lowers its real cost; a tax pro can confirm. Rules on holding a tenant's deposit vary by state: some require a separate account or paying the tenant interest.</p>`;
+
+  // checklist
+  $("#mMonth").value = S.mMonth;
+  const logged = M.logged[S.mMonth] || {};
+  const extraNow = M.plan.extra;
+  $("#mChecklist").innerHTML = M.recurring.map(r => {
+    const amt = r.kind === "rent" ? M.tenant.rent : r.kind === "mortgage" ? mortgageOut() : r.amount, isLogged = !!logged[r.id];
+    const label = r.kind === "mortgage" && !isLogged && extraNow ? `${fmt(amt)} + ${fmt(extraNow)} extra` : fmt(amt);
+    return `<div class="rec ${isLogged ? "logged" : ""}"><span class="nm">${esc(r.name)} <span class="muted small">${esc(r.category)}</span></span>
+      <span class="amt ${r.type === "income" ? "inc" : "exp"}">${r.type === "income" ? "+" : "−"}${label}</span>
+      <span>${isLogged ? `<button class="icon" data-unlog="${r.id}">Undo</button>` : `<button class="hint-btn" data-log="${r.id}">Log</button>`}${r.kind ? "" : `<button class="icon" data-delrec="${r.id}" title="Remove">✕</button>`}</span></div>`;
+  }).join("");
+  $("#allCats").innerHTML = [...new Set([...S.cats.expense, ...S.cats.income])].map(c => `<option value="${esc(c)}">`).join("");
+
+  // forecast
+  const autoLiv = livingAuto();
+  $("#mFcSub").textContent = `Starts from today's balances. Each month: rent + sub teaching + savings interest − mortgage − living costs. ` +
+    `Living costs: ${M.plan.living !== null ? "your number" : autoLiv !== null ? `${fmt(autoLiv)}/mo, averaged from your last 3 months of Entries` : "not set ($0)"}. ` +
+    `Sub teaching counts your scheduled days${M.plan.workShare ? ` plus ${M.plan.workShare}% of open days` : ""}.`;
+  const W = Math.max(260, Math.floor($("#mFcChart").clientWidth));
+  const series = [
+    { name: "Cash on hand", color: slot(0), values: fc.map(r => r.cash) },
+    { name: "Deposit owed", color: slot(1), values: fc.map(r => r.dep) },
+    { name: "Free cash", color: slot(2), values: fc.map(r => r.free) },
+  ];
+  $("#mFcLegend").innerHTML = series.map(s => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join("");
+  $("#mFcChart").innerHTML = lineChart(fc.map(r => r.ym), series, W);
+  $("#mFcTable").innerHTML = tableHTML(["Month", "Rent", "Sub teaching", "Interest", "Mortgage", "Living", "Net", "Deposit in/out", "Cash", "Free cash"],
+    fc.map(r => [monthName(r.ym), fmt(r.rent), fmt(r.work), fmt(r.interest), fmt(-r.mort), fmt(-r.liv), `<b class="${r.net < 0 ? "exp" : ""}">${fmt(r.net)}</b>`,
+      r.depIn ? `+${fmt(r.depIn)}` : r.depOut ? `−${fmt(r.depOut)}` : "", fmt(r.cash), `<span class="${r.free < 0 ? "exp" : ""}">${fmt(r.free)}</span>`]));
+
+  // mortgage
+  const mg = M.mortgage, what = amortize(M.plan.extra, M.plan.lump);
+  $("#mgBal").textContent = fmt(mg.balance);
+  $("#mgSub").textContent = `${mg.rate}% · ${fmt(mg.payment)} P&I${mg.escrow ? ` + ${fmt(mg.escrow)} escrow` : ""} · next payment ${monthName(mg.nextDue)}`;
+  const thisMonthInt = round2(mg.balance * mg.rate / 1200);
+  $("#mgStats").innerHTML = base
+    ? st("Payoff", monthName(base.last), yrsMos(base.months) + " left") +
+      st("Interest left", fmt(base.interest), "if you pay as scheduled") +
+      st("Next payment split", `${fmt(round2(mg.payment - thisMonthInt))}`, `principal · ${fmt(thisMonthInt)} interest`)
+    : mg.balance > 0 ? `<span class="exp">The payment doesn't cover the interest. Check the loan details.</span>`
+    : `<span class="muted">No mortgage entered. Add it under <b>Loan details</b> below.</span>`;
+  $("#mgWhat").innerHTML = what && base && (M.plan.extra || M.plan.lump)
+    ? `Paid off <b>${monthName(what.last)}</b>: ${yrsMos(base.months - what.months)} early, saving <b class="inc">${fmt(base.interest - what.interest)}</b> in interest.`
+    : `<span class="muted">Enter an amount to see the new payoff date and interest saved.</span>`;
+  if (base) {
+    const yrs = base.years.map(y => y.year), wy = Object.fromEntries((what?.years || []).map(y => [y.year, y.balance]));
+    const ms = [{ name: "As scheduled", color: slot(0), values: base.years.map(y => round2(y.balance)) }];
+    if (what && (M.plan.extra || M.plan.lump)) ms.push({ name: "With extra", color: slot(2), values: yrs.map(y => round2(wy[y] ?? 0)) });
+    $("#mgLegend").innerHTML = ms.length > 1 ? ms.map(s => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join("") : "";
+    $("#mgChart").innerHTML = lineChart(yrs, ms, Math.max(260, Math.floor($("#mgChart").clientWidth)));
+    const sched = what && (M.plan.extra || M.plan.lump) ? what : base;
+    $("#mgTable").innerHTML = `<p class="muted small">${sched === what ? "Including your extra payments." : "As scheduled."} The current year counts from your next payment.</p>` +
+      tableHTML(["Year", "P&I paid", "Principal", "Extra principal", "Interest", "Remaining"],
+        sched.years.map(y => [y.year, fmt(y.payments), fmt(y.principal), fmt(y.extra), fmt(y.interest), fmt(y.balance)]));
+  }
+  $("#mgHist").innerHTML = mg.payments.length
+    ? tableHTML(["Month", "Principal", "Extra", "Interest", "Balance after"], [...mg.payments].reverse().map(p =>
+        [monthName(p.month), fmt(p.principal), fmt(p.extra), fmt(p.interest), fmt(round2(p.before - p.principal - p.extra))]))
+    : `<p class="muted small">Log a mortgage payment from the monthly checklist and it shows up here.</p>`;
+
+  // fill bound inputs
+  $$("[data-m]", $("#tab-money")).forEach(el => {
+    if (el === document.activeElement) return;
+    const [sec, key] = el.dataset.m.split("."), v = M[sec][key];
+    if (el.type === "checkbox") el.checked = !!v;
+    else el.value = v ?? "";
+  });
+}
+
+async function saveMoney(patch) {
+  try { setState(await api("PUT", "/api/money", patch)); } catch (e) { alert(e.message); }
+  renderMoney();
+}
+// any input with data-m="section.key" saves itself on change
+$("#tab-money").addEventListener("change", e => {
+  const el = e.target.closest("[data-m]"); if (!el) return;
+  const [sec, key] = el.dataset.m.split(".");
+  const v = el.type === "checkbox" ? el.checked : el.value === "" ? (key === "living" ? null : 0) : el.value;
+  saveMoney({ [sec]: { [key]: v } });
+});
+$("#mMonth").addEventListener("change", e => { if (e.target.value) { S.mMonth = e.target.value; renderMoney(); } });
+$("#mChecklist").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  try {
+    if (b.dataset.log) {
+      const body = { month: S.mMonth, id: b.dataset.log };
+      if (b.dataset.log === "mortgage") body.extra = S.money.plan.extra;
+      setState(await api("POST", "/api/money/log", body));
+    } else if (b.dataset.unlog) {
+      if (!confirm("Undo this entry? It's removed from Entries" + (b.dataset.unlog === "mortgage" ? " and the loan balance goes back." : "."))) return;
+      setState(await api("POST", "/api/money/unlog", { month: S.mMonth, id: b.dataset.unlog }));
+    } else if (b.dataset.delrec) {
+      if (!confirm("Remove this recurring item?")) return;
+      setState(await api("POST", "/api/money/recurring", { action: "delete", id: b.dataset.delrec }));
+    }
+    fillCategories(); renderMoney();
+  } catch (err) { alert(err.message); }
+});
+$("#mRecForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const f = e.target.elements;
+  try {
+    setState(await api("POST", "/api/money/recurring", { action: "add", item: { name: f.name.value, type: f.type.value, category: f.category.value, amount: f.amount.value } }));
+    e.target.reset(); renderMoney();
+  } catch (err) { alert(err.message); }
+});
+let moneyResizeT;
+addEventListener("resize", () => { clearTimeout(moneyResizeT); moneyResizeT = setTimeout(() => S.tab === "money" && renderMoney(), 150); });
+
+// ---------- categories ----------
+function renderCats() {
+  const counts = {};
+  S.tx.forEach(t => { const k = t.type + ":" + t.category; counts[k] = (counts[k] || 0) + 1; });
+  $("#catLists").innerHTML = ["income", "expense"].map(type => `<div class="card"><h2>${typeName(type)} categories</h2>
+    <ul class="cat-list">${S.cats[type].map(c => `<li><span>${esc(c)}</span><span class="muted small">${counts[type + ":" + c] || 0} entries</span>
+      ${c === "Misc" ? `<span class="muted small">locked</span>` : `<button class="icon" data-cact="rename" data-type="${type}" data-name="${esc(c)}">Rename</button><button class="icon" data-cact="delete" data-type="${type}" data-name="${esc(c)}">Delete</button>`}</li>`).join("")}</ul>
+    <form class="add-cat" data-type="${type}"><input name="name" placeholder="New ${type} category" required maxlength="40"><button>Add</button></form></div>`).join("");
+}
+async function catCall(body) {
+  try { setState(await api("POST", "/api/categories", body)); fillCategories(); renderCats(); } catch (e) { alert(e.message); }
+}
+$("#catLists").addEventListener("click", e => {
+  const b = e.target.closest("[data-cact]"); if (!b) return;
+  const { cact, type, name } = b.dataset, n = S.tx.filter(t => t.type === type && t.category === name).length;
+  if (cact === "rename") { const nn = prompt(`Rename “${name}” to:`, name); if (nn && nn.trim() && nn.trim() !== name) catCall({ action: "rename", type, name, newName: nn.trim() }); }
+  if (cact === "delete" && confirm(`Delete “${name}”?${n ? ` Its ${n} entries will move to Misc.` : ""}`)) catCall({ action: "delete", type, name });
+});
+$("#catLists").addEventListener("submit", e => {
+  e.preventDefault();
+  catCall({ action: "add", type: e.target.dataset.type, name: e.target.elements.name.value.trim() });
+});
+
+// ---------- import ----------
+function renderData() {
+  const mode = $("input[name=imode]:checked").value;
+  $("#modeHelp").textContent = mode === "merge"
+    ? "Adds the file's entries to what you already have, skipping exact duplicates."
+    : "Deletes all current entries and uses the file instead. A JSON backup also restores categories and charts.";
+}
+$$("input[name=imode]").forEach(r => r.addEventListener("change", renderData));
+$("#importBtn").addEventListener("click", async () => {
+  const out = $("#importResult"), file = $("#importFile").files[0];
+  if (!file) { out.innerHTML = `<p class="err">Choose a file first.</p>`; return; }
+  const mode = $("input[name=imode]:checked").value;
+  if (mode === "replace" && !confirm("Replace ALL current entries with this file? Consider downloading a backup first.")) return;
+  const text = await file.text();
+  const format = /\.json$/i.test(file.name) || text.trim().startsWith("{") ? "json" : "csv";
+  try {
+    const d = await api("POST", "/api/import", { format, mode, text });
+    setState(d); fillCategories();
+    const r = d.result;
+    renderBanner();
+    out.innerHTML = `<p><b class="inc">Imported ${r.added} entr${r.added === 1 ? "y" : "ies"}.</b>${format === "json" && mode === "replace" ? " Restored your categories, charts, work schedule and Money tab." : ""}${r.skipped ? ` Skipped ${r.skipped} duplicate${r.skipped === 1 ? "" : "s"}.` : ""}</p>
+      ${r.newCategories.length ? `<p class="small">New categories: ${r.newCategories.map(esc).join(", ")}</p>` : ""}
+      ${r.errorCount ? `<p class="err">${r.errorCount} row${r.errorCount === 1 ? "" : "s"} couldn't be read:</p><ul class="small muted">${r.errors.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}`;
+  } catch (e) { out.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+});
+
+// ---------- start ----------
+(async () => {
+  await Backend.init();
+  setState(await api("GET", "/api/data"));
+  $("#date").value = today;
+  fillCategories();
+  renderBanner();
+  showTab(["entries", "money", "analytics", "work", "categories", "data"].includes(S.tab) ? S.tab : "entries");
+})();
+// offline support: cache the app so it opens with no signal
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>

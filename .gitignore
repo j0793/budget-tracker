@@ -1,0 +1,28 @@
+# Personal data. This repo is public, so none of these may ever be committed.
+# The web app keeps its data in your browser; these only exist if you use the
+# desktop (Python) version or download exports into this folder.
+
+# desktop version's data files
+transactions.csv
+categories.json
+dashboard.json
+work.json
+money.json
+*.tmp
+
+# exports and backups downloaded from the app
+budget-backup-*.json
+budget-transactions-*.csv
+work-log-*.csv
+*backup*.json
+*.csv
+
+# the desktop version itself has personal balances built in
+budget.py
+
+# OS / editor clutter
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+__pycache__/
