@@ -1239,7 +1239,8 @@ function renderWork() {
     stat("Earned", m.worked[1], `${m.worked[0]} day${m.worked[0] === 1 ? "" : "s"} worked`, "inc") +
     stat("Planned ahead", m.planned[1], `${m.planned[0]} day${m.planned[0] === 1 ? "" : "s"}`) +
     stat("Projected total", m.worked[1] + m.planned[1], "earned + planned") +
-    `<div class="stat"><div class="label">Hours worked</div><div class="value">${fmtH(m.hours)}</div><div class="muted small">${m.hours ? rateStr(m.hoursPay / m.hours) + " effective" : s.payBasis === "hourly" ? `at ${rateStr(s.hourly)}` : "no hours logged"}</div></div>`;
+    `<div class="stat"><div class="label">Hours worked</div><div class="value">${fmtH(m.hours)}</div><div class="muted small">${m.hours ? rateStr(m.hoursPay / m.hours) + " effective" : s.payBasis === "hourly" ? `at ${rateStr(s.hourly)}` : "no hours logged"}</div></div>` +
+    `<div class="stat"><div class="label">${s.payBasis === "hourly" ? "Hourly rate" : "Day rate"}</div><div class="value">${s.payBasis === "hourly" ? rateStr(+s.hourly) : fmt(+s.rate)}</div><div class="small"><button type="button" class="hint-btn" id="editRate">Edit pay</button></div></div>`;
   const segs = [["worked", "Earned"], ["planned", "Planned"], ["open", "Not planned yet"], ["passed", "Passed, not worked"]];
   $("#wBar").innerHTML = season ? segs.filter(([k]) => m[k][1] > 0).map(([k, l]) =>
     `<div class="seg-${k}" style="flex:${m[k][1]} 1 0" data-tt="${l}|${m[k][0]} days · ${fmt0(m[k][1])} · ${(m[k][1] / season * 100).toFixed(0)}% of season"></div>`).join("") : "";
@@ -1537,6 +1538,12 @@ $("#wNotice").addEventListener("click", e => {
   workChange(Object.fromEntries(workModel().confirm.map(iso => [iso, b.dataset.confirm])));
 });
 $$("[data-wmode]").forEach(b => b.addEventListener("click", () => { S.wmode = b.dataset.wmode; renderWork(); }));
+$("#wStats").addEventListener("click", e => {
+  if (e.target.id !== "editRate") return;
+  const d = $("#wSettings"); d.open = true;
+  const f = $("#wForm").elements[S.work.settings.payBasis === "hourly" ? "hourly" : "rate"];
+  d.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => { f.focus(); f.select(); }, 350);
+});
 $("#earlierMonth").addEventListener("click", () => { S.extraBefore++; renderWork(); $("#wMonths").scrollIntoView({ behavior: "smooth" }); });
 $("#wForm").addEventListener("submit", async e => {
   e.preventDefault();

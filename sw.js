@@ -1,7 +1,7 @@
 // Caches the app so it opens offline. Only the app's own files are cached;
 // your data is in IndexedDB and never passes through here.
 // Bump VERSION when you change any file so phones pick up the update.
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE = `budget-${VERSION}`;
 const FILES = ["./", "index.html", "backend.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
