@@ -192,6 +192,8 @@
          position:relative; font-variant-numeric:tabular-nums; touch-action:pan-y; user-select:none; -webkit-user-select:none; }
   .day:hover { border-color:var(--planned); }
   .day.na { border-color:transparent; background:transparent; color:var(--grid); cursor:default; }
+  .day.na.early { color:var(--axis); cursor:pointer; border:1px dashed var(--grid); }
+  .day.na.early:hover { border-color:var(--planned); color:var(--text); }
   .day.off { border-color:transparent; color:var(--axis); background:repeating-linear-gradient(135deg, transparent 0 4px, var(--grid) 4px 6px); }
   .day.half::after { content:"½"; position:absolute; top:1px; right:4px; font-size:9px; font-weight:700; line-height:1; }
   .day.past { color:var(--axis); background:transparent; border-color:transparent; }
@@ -470,6 +472,7 @@
         <button data-wmode="edit">Edit school calendar</button>
       </div>
       <span class="muted small" id="wHint"></span>
+      <button type="button" id="earlierMonth" title="Show the month before your tracking start">‹ Earlier month</button>
     </div>
     <div class="months" id="wMonths"></div>
     <div class="card" style="margin-top:16px">
@@ -1185,7 +1188,7 @@ const pad2 = n => String(n).padStart(2, "0");
 const isoOf = (y, m, d) => `${y}-${pad2(m + 1)}-${pad2(d)}`;
 const fmt0 = n => n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: Number.isInteger(n) ? 0 : 2 });
 const longDate = iso => new Date(iso + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-S.wmode = "plan";
+S.wmode = "plan"; S.extraBefore = 0;
 
 function kindOf(iso) {
   const s = S.work.settings;
@@ -1263,7 +1266,7 @@ function renderWork() {
 
 function renderMonths() {
   const s = S.work.settings, out = [];
-  let [y, mo] = s.start.split("-").map(Number); mo--;
+  let [y, mo] = shiftMonth(s.start.slice(0, 7), -S.extraBefore).split("-").map(Number); mo--;
   const [ey, em] = s.end.split("-").map(Number);
   while (y < ey || (y === ey && mo <= em - 1)) {
     const days = new Date(y, mo + 1, 0).getDate();
@@ -1275,7 +1278,7 @@ function renderMonths() {
       const wd = new Date(y, mo, d).getDay(); if (wd === 0 || wd === 6) continue;
       const iso = isoOf(y, mo, d), kind = kindOf(iso), inRange = iso >= s.start && iso <= s.end;
       const cls = ["day"]; let tt = longDate(iso);
-      if (!inRange) cls.push("na");
+      if (!inRange) { cls.push("na"); if (iso < s.start) { cls.push("early"); tt += "|Before your tracking start. Tap to log it."; } }
       else if (!kind) { cls.push("off"); tt += `|${s.off[iso]}`; }
       else {
         const st = statusOf(iso), pay = payOf(iso, kind), future = iso >= today;
@@ -1338,6 +1341,12 @@ function clickDay(iso) {
     else if (half[iso]) { delete half[iso]; off[iso] = "No school"; }
     else half[iso] = "Half day";
     return workSettings({ off, half });
+  }
+  const s = S.work.settings;
+  if (iso < s.start && S.wmode === "plan") {
+    if (!confirm(`Start tracking work from ${longDate(iso)}? Earlier days stay hidden, and your season totals will include days from then on.`)) return;
+    S.extraBefore = 0;
+    return workSettings({ start: iso }).then(ok => { if (ok && kindOf(iso)) openDay(iso); });
   }
   if (kindOf(iso)) openDay(iso);
 }
@@ -1528,6 +1537,7 @@ $("#wNotice").addEventListener("click", e => {
   workChange(Object.fromEntries(workModel().confirm.map(iso => [iso, b.dataset.confirm])));
 });
 $$("[data-wmode]").forEach(b => b.addEventListener("click", () => { S.wmode = b.dataset.wmode; renderWork(); }));
+$("#earlierMonth").addEventListener("click", () => { S.extraBefore++; renderWork(); $("#wMonths").scrollIntoView({ behavior: "smooth" }); });
 $("#wForm").addEventListener("submit", async e => {
   e.preventDefault();
   const f = e.target.elements;
