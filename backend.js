@@ -115,13 +115,19 @@ const Backend = (() => {
     return d;
   }
   function normalizeWork(w) {
-    if (!w || typeof w !== "object" || typeof w.settings !== "object") return defaultWork();
+    if (!w || typeof w !== "object" || typeof w.settings !== "object") w = defaultWork();
     const s = w.settings, def = defaultWork().settings;
     for (const k in def) if (s[k] === undefined) s[k] = def[k];
     if (s.hourly === 0 && s.rate && s.dayHours) s.hourly = round(s.rate / s.dayHours, 4);
     w.days = w.days && typeof w.days === "object" ? w.days : {};
+    if (!Array.isArray(s.seasons) || !s.seasons.length)
+      s.seasons = [{ id: "y" + s.start.slice(0, 4), name: seasonName(s.start, s.end), start: s.start, end: s.end }];
+    if (!s.seasons.some(x => x.id === s.season)) s.season = s.seasons[0].id;
+    const act = s.seasons.find(x => x.id === s.season);
+    s.start = act.start; s.end = act.end;
     return w;
   }
+  const seasonName = (a, b) => a.slice(0, 4) === b.slice(0, 4) ? a.slice(0, 4) : `${a.slice(0, 4)}–${b.slice(2, 4)}`;
   function normalizeMoney(m) {
     const def = defaultMoney();
     if (!m || typeof m !== "object") return def;
@@ -146,7 +152,7 @@ const Backend = (() => {
 
   async function init() {
     try { idb = await openIdb(); db = normalize(await idbGet()); }
-    catch (e) { storageOk = false; db = defaults(); }
+    catch (e) { storageOk = false; db = normalize(null); }
     try { persistent = navigator.storage?.persist ? await navigator.storage.persist() : false; } catch { }
   }
   async function persist() { if (idb) await idbPut(db); }
@@ -300,7 +306,8 @@ const Backend = (() => {
   // ---------- work planner ----------
   const NOTE_FIELDS = { school: 80, address: 160, start: 5, end: 5, break: 4, hours: 6, teacher: 80, notes: 1000 };
   function dayKind(s, iso) {
-    if (iso < s.start || iso > s.end || s.off[iso]) return null;
+    const yrs = s.seasons?.length ? s.seasons : [s];
+    if (!yrs.some(x => iso >= x.start && iso <= x.end) || s.off[iso]) return null;
     const wd = weekday(iso);
     if (wd === 0 || wd === 6) return null;
     return s.half[iso] ? "half" : "full";
@@ -399,8 +406,18 @@ const Backend = (() => {
       dayStart: hhmm(b.dayStart ?? old.dayStart), dayEnd: hhmm(b.dayEnd ?? old.dayEnd),
       dayBreak: parseInt(b.dayBreak ?? old.dayBreak ?? 0, 10) || 0,
       off: dateMap(b.off ?? old.off), half: dateMap(b.half ?? old.half),
+      seasons: (Array.isArray(b.seasons) ? b.seasons : old.seasons || []).slice(0, 50).map(x => ({
+        id: str(x.id, 20) || newId(), name: str(x.name, 40), start: isoDate(x.start), end: isoDate(x.end) })),
+      season: str(b.season ?? old.season, 20),
     };
     if (s.start > s.end) fail("start must be before end");
+    if (!s.seasons.length) fail("Keep at least one school year");
+    const act = s.seasons.find(x => x.id === s.season) || s.seasons[0];
+    s.season = act.id; act.start = s.start; act.end = s.end;
+    s.seasons.forEach(x => { if (!x.name) x.name = seasonName(x.start, x.end); if (x.start > x.end) fail(`${x.name}: first day must be before last day`); });
+    s.seasons.sort((a, c) => a.start.localeCompare(c.start));
+    for (let i = 1; i < s.seasons.length; i++)
+      if (s.seasons[i].start <= s.seasons[i - 1].end) fail(`${s.seasons[i - 1].name} and ${s.seasons[i].name} overlap`);
     for (const iso of Object.keys(s.half)) if (s.off[iso]) delete s.half[iso];
     for (const [iso, day] of Object.entries(d.work.days)) {
       const kind = dayKind(s, iso);

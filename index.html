@@ -335,6 +335,7 @@
         <button class="chip" data-preset="12m">Last 12 mo</button>
         <button class="chip" data-preset="ytd">This year</button>
         <button class="chip" data-preset="all">All time</button>
+        <button class="chip" data-preset="season">School year</button>
       </div>
       <div class="group">
         <button id="resetDash" title="Restore the default charts">Reset charts</button>
@@ -453,6 +454,13 @@
 
   <!-- WORK -->
   <section id="tab-work" hidden>
+    <div class="controls">
+      <div class="group">
+        <label>School year <select id="seasonSel"></select></label>
+        <button type="button" id="seasonEdit">Edit</button>
+        <button type="button" id="seasonNew">+ New school year</button>
+      </div>
+    </div>
     <div class="card" style="margin-top:16px">
       <div class="work-top">
         <div>
@@ -483,6 +491,10 @@
         <tbody id="logBody"></tbody>
       </table></div>
     </div>
+    <div class="card" style="margin-top:16px">
+      <h2 id="wChartsTitle">School year analytics</h2>
+      <div class="grid two" id="wCharts" style="margin-top:0"></div>
+    </div>
     <details class="card" style="margin-top:16px" id="wSettings">
       <summary>Job settings</summary>
       <form class="wset" id="wForm">
@@ -502,8 +514,8 @@
         <label>Usual start <input name="dayStart" type="time"></label>
         <label>Usual end <input name="dayEnd" type="time"></label>
         <label>Usual unpaid break (min) <input name="dayBreak" type="number" min="0" step="5"></label>
-        <label>First day <input name="start" type="date"></label>
-        <label>Last day <input name="end" type="date"></label>
+        <label>This school year: first day <input name="start" type="date"></label>
+        <label>This school year: last day <input name="end" type="date"></label>
         <div class="wset-foot"><button type="button" class="hint-btn" id="deriveRate"></button>
           <span><span class="muted small" id="wErr"></span> <button class="primary">Save settings</button></span></div>
       </form>
@@ -623,6 +635,22 @@
   </form>
 </dialog>
 
+<dialog id="sdlg">
+  <form id="sform">
+    <h3 id="sTitle">School year</h3>
+    <label>Name <input name="name" maxlength="40" placeholder="e.g. 2027–28"></label>
+    <div class="row">
+      <label>First day <input name="start" type="date" required></label>
+      <label>Last day <input name="end" type="date" required></label>
+    </div>
+    <p class="muted small" style="margin:0">Holidays and half days are set by tapping days in <b>Edit school calendar</b> mode. Pay settings are shared across years.</p>
+    <div class="dlg-actions" style="justify-content:space-between">
+      <button type="button" id="sDelete" class="btn-danger">Delete</button>
+      <span><button type="button" id="sCancel">Cancel</button> <button class="primary">Save</button></span>
+    </div>
+  </form>
+</dialog>
+
 <div id="tooltip" hidden></div>
 
 <script src="backend.js"></script>
@@ -649,7 +677,8 @@ const shiftMonth = (m, d) => {
   return `${y}-${String(mo).padStart(2, "0")}`;
 };
 const monthsBetween = (a, b) => { if (a > b) [a, b] = [b, a]; const out = []; for (let m = a; m <= b && out.length < 240; m = shiftMonth(m, 1)) out.push(m); return out; };
-const monthLabel = m => m.length === 4 ? m : new Date(m + "-15T12:00").toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+const monthLabel = m => /^\d{4}-\d{2}$/.test(m) ? new Date(m + "-15T12:00").toLocaleDateString(undefined, { month: "short", year: "2-digit" })
+  : /^\d{4}-\d{2}-\d{2}$/.test(m) ? new Date(m + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }) : m;
 const slot = i => `var(--s${i + 1})`;
 const typeName = t => t === "income" ? "Income" : "Expense";
 
@@ -861,7 +890,9 @@ $("#fcat").addEventListener("change", e => { S.fcat = e.target.value; renderEntr
 // ---------- charts ----------
 const TIPS = [];
 const addTip = html => TIPS.push(html) - 1;
-const tipRow = (color, name, v) => `<div class="tt-row"><i style="background:${color}"></i>${esc(name)}<span>${fmt(v)}</span></div>`;
+let VF = { v: n => fmt(n), s: n => fmtShort(n) };  // chart value formatters (default: money)
+const withFmt = (v, sh, fn) => { const o = VF; VF = { v, s: sh }; try { return fn(); } finally { VF = o; } };
+const tipRow = (color, name, v) => `<div class="tt-row"><i style="background:${color}"></i>${esc(name)}<span>${VF.v(v)}</span></div>`;
 
 function niceTicks(min, max, n = 4) {
   if (min === max) max = min + 1;
@@ -872,7 +903,7 @@ function niceTicks(min, max, n = 4) {
   return [lo, hi, ticks];
 }
 const svg = (W, H, inner) => `<svg class="chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">${inner}</svg>`;
-const yAxis = (ticks, y, m, W) => ticks.map(t => `<line class="gridline" x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}"/><text class="tick" x="${m.l - 8}" y="${y(t) + 4}" text-anchor="end">${fmtShort(t)}</text>`).join("");
+const yAxis = (ticks, y, m, W) => ticks.map(t => `<line class="gridline" x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}"/><text class="tick" x="${m.l - 8}" y="${y(t) + 4}" text-anchor="end">${VF.s(t)}</text>`).join("");
 function xAxis(labels, xpos, m, H, room) {
   const every = Math.max(1, Math.ceil(labels.length / Math.max(1, Math.floor(room / 54))));
   return labels.map((l, i) => i % every ? "" : `<text class="tick" x="${xpos(i)}" y="${H - 8}" text-anchor="middle">${monthLabel(l)}</text>`).join("");
@@ -959,7 +990,7 @@ function hbarChart(items, W, color) {
     const tip = `<b>${esc(d.label)}</b>${tipRow(d.color || color, "Total", d.value)}<div class="tt-row">Share<span>${(d.value / total * 100).toFixed(1)}%</span></div>`;
     return `<g class="hrow"><text class="lbl" x="${lw - 8}" y="${by + bh - 2}" text-anchor="end">${esc(name)}</text>
       <path class="hbar" d="M${lw},${by}H${lw + w - r}Q${lw + w},${by} ${lw + w},${by + r}V${by + bh - r}Q${lw + w},${by + bh} ${lw + w - r},${by + bh}H${lw}Z" fill="${d.color || color}"/>
-      <text class="val" x="${lw + w + 6}" y="${by + bh - 2}">${fmtShort(d.value)}</text>
+      <text class="val" x="${lw + w + 6}" y="${by + bh - 2}">${VF.s(d.value)}</text>
       <rect class="hit" data-tip="${addTip(tip)}" x="0" y="${y}" width="${W}" height="${rowH}"/></g>`;
   }).join("");
   return svg(W, H, `<line class="baseline" x1="${lw}" x2="${lw}" y1="0" y2="${H}"/>` + g);
@@ -986,6 +1017,7 @@ const tableHTML = (head, rows) => `<div style="overflow-x:auto"><table><thead><t
 
 // ---------- analytics data ----------
 function presetRange(p) {
+  if (p === "season") return { from: S.work.settings.start.slice(0, 7), to: S.work.settings.end.slice(0, 7) };
   if (p === "12m") return { from: shiftMonth(thisMonth, -11), to: thisMonth };
   if (p === "ytd") return { from: thisMonth.slice(0, 4) + "-01", to: thisMonth };
   if (p === "all") {
@@ -1191,8 +1223,8 @@ const longDate = iso => new Date(iso + "T12:00").toLocaleDateString(undefined, {
 S.wmode = "plan"; S.extraBefore = 0;
 
 function kindOf(iso) {
-  const s = S.work.settings;
-  if (iso < s.start || iso > s.end || s.off[iso]) return null;
+  const s = S.work.settings, yrs = s.seasons?.length ? s.seasons : [s];
+  if (!yrs.some(x => iso >= x.start && iso <= x.end) || s.off[iso]) return null;
   const wd = new Date(iso + "T12:00").getDay();
   if (wd === 0 || wd === 6) return null;
   return s.half[iso] ? "half" : "full";
@@ -1231,7 +1263,8 @@ function renderWork() {
   const left = m.planned[1] + m.open[1], leftDays = m.planned[0] + m.open[0];
   const season = left + m.worked[1] + m.passed[1];
   const endLabel = new Date(s.end + "T12:00").toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
-  $("#wLabel").textContent = `${s.name} · still available this school year`;
+  $("#wLabel").textContent = `${s.name} · ${activeSeason().name} · still available this school year`;
+  renderSeasons();
   $("#wHero").textContent = fmt0(left);
   $("#wHeroSub").textContent = `${leftDays} school days left (${m.full} full, ${m.half} half) through ${endLabel}`;
   const stat = (label, v, sub, cls = "") => `<div class="stat"><div class="label">${label}</div><div class="value ${cls}">${fmt0(v)}</div><div class="muted small">${sub}</div></div>`;
@@ -1255,6 +1288,7 @@ function renderWork() {
   $("#wMonths").classList.toggle("cal-edit", S.wmode === "edit");
   renderMonths();
   renderLog();
+  renderWorkCharts();
 
   const f = $("#wForm").elements;
   if (!$("#wSettings").contains(document.activeElement)) {
@@ -1350,6 +1384,114 @@ function clickDay(iso) {
     return workSettings({ start: iso }).then(ok => { if (ok && kindOf(iso)) openDay(iso); });
   }
   if (kindOf(iso)) openDay(iso);
+}
+
+// ---------- school years ----------
+const activeSeason = () => S.work.settings.seasons.find(x => x.id === S.work.settings.season) || S.work.settings.seasons[0];
+const shortDate = iso => new Date(iso + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+function renderSeasons() {
+  const sel = $("#seasonSel");
+  sel.innerHTML = S.work.settings.seasons.map(x => `<option value="${x.id}">${esc(x.name)} (${shortDate(x.start)} – ${shortDate(x.end)})</option>`).join("");
+  sel.value = activeSeason().id;
+}
+$("#seasonSel").addEventListener("change", e => {
+  const x = S.work.settings.seasons.find(y => y.id === e.target.value);
+  S.extraBefore = 0;
+  workSettings({ season: x.id, start: x.start, end: x.end });
+});
+let sEditing = null;
+function openSeason(x) {
+  sEditing = x;
+  const f = $("#sform").elements;
+  if (x) { f.name.value = x.name; f.start.value = x.start; f.end.value = x.end; }
+  else {  // suggest the year after the latest one
+    const last = S.work.settings.seasons.at(-1), y = +last.end.slice(0, 4);
+    f.name.value = `${y}–${String(y + 1).slice(2)}`; f.start.value = `${y}-08-25`; f.end.value = `${y + 1}-06-15`;
+  }
+  $("#sTitle").textContent = x ? "Edit school year" : "New school year";
+  $("#sDelete").hidden = !x || S.work.settings.seasons.length < 2;
+  $("#sdlg").showModal();
+}
+$("#seasonNew").addEventListener("click", () => openSeason(null));
+$("#seasonEdit").addEventListener("click", () => openSeason(activeSeason()));
+$("#sCancel").addEventListener("click", () => $("#sdlg").close());
+$("#sform").addEventListener("submit", async e => {
+  e.preventDefault();
+  const f = e.target.elements, x = { id: sEditing?.id || "y" + Date.now().toString(36), name: f.name.value.trim(), start: f.start.value, end: f.end.value };
+  const seasons = sEditing ? S.work.settings.seasons.map(y => y.id === x.id ? x : y) : [...S.work.settings.seasons, x];
+  const active = sEditing && sEditing.id !== S.work.settings.season ? activeSeason() : x;  // new or edited-active year becomes the view
+  S.extraBefore = 0;
+  if (await workSettings({ seasons, season: active.id, start: active.start, end: active.end })) $("#sdlg").close();
+});
+$("#sDelete").addEventListener("click", async () => {
+  const x = sEditing; if (!x || !confirm(`Delete ${x.name}? Scheduled days in it are removed. Years with worked days can't be deleted until those are unmarked.`)) return;
+  const seasons = S.work.settings.seasons.filter(y => y.id !== x.id), next = seasons.at(-1);
+  if (await workSettings({ seasons, season: next.id, start: next.start, end: next.end })) $("#sdlg").close();
+});
+
+// ---------- school year analytics ----------
+function renderWorkCharts() {
+  TIPS.length = 0;
+  const s = S.work.settings, yr = activeSeason(), box = $("#wCharts");
+  $("#wChartsTitle").textContent = `${yr.name} analytics`;
+  const days = [];
+  for (let d = new Date(s.start + "T12:00"); ; d.setDate(d.getDate() + 1)) {
+    const iso = isoOf(d.getFullYear(), d.getMonth(), d.getDate()); if (iso > s.end) break;
+    const kind = kindOf(iso); if (!kind) continue;
+    const st = statusOf(iso); if (st === "open") continue;
+    days.push({ iso, st, pay: payOf(iso, kind), hours: noteHours(noteOf(iso)) || 0, school: noteOf(iso)?.school || "", wd: d.getDay() });
+  }
+  const worked = days.filter(x => x.st === "worked");
+  if (!worked.length && !days.length) { box.innerHTML = `<p class="empty">Schedule or log days in this school year to see charts.</p>`; return; }
+  const charts = [];
+  const months = monthsBetween(s.start.slice(0, 7), s.end.slice(0, 7));
+  const byMonth = st => months.map(m => days.filter(x => x.st === st && x.iso.startsWith(m)).reduce((a, x) => a + x.pay, 0));
+  charts.push({ t: "Earnings by month", sub: "Earned vs still scheduled", full: true,
+    draw: W => legendHTML([{ name: "Earned", color: "var(--worked)" }, { name: "Scheduled", color: "var(--planned)" }]) +
+      barChart(months, [{ name: "Earned", color: "var(--worked)", values: byMonth("worked") }, { name: "Scheduled", color: "var(--planned)", values: byMonth("planned") }], W, true) });
+  if (worked.some(x => x.hours)) {
+    const mon = iso => { const d = new Date(iso + "T12:00"); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoOf(d.getFullYear(), d.getMonth(), d.getDate()); };
+    const weeks = []; for (let w = mon(s.start); w <= (today < s.end ? today : s.end); ) { weeks.push(w); const d = new Date(w + "T12:00"); d.setDate(d.getDate() + 7); w = isoOf(d.getFullYear(), d.getMonth(), d.getDate()); }
+    const hrs = weeks.map(w => worked.filter(x => mon(x.iso) === w).reduce((a, x) => a + x.hours, 0));
+    const tot = hrs.reduce((a, b) => a + b, 0), act = hrs.filter(Boolean).length;
+    charts.push({ t: "Hours per week", sub: `${fmtH(tot)} h total · ${fmtH(tot / (act || 1))} h in an average working week`,
+      draw: W => withFmt(n => `${fmtH(n)} h`, n => `${n}h`, () => barChart(weeks, [{ name: "Hours", color: "var(--worked)", values: hrs.map(h => Math.round(h * 100) / 100) }], W, false)) });
+  }
+  if (worked.length) {
+    const names = ["Mon", "Tue", "Wed", "Thu", "Fri"], cnt = names.map((_, i) => worked.filter(x => x.wd === i + 1).length);
+    const top = names[cnt.indexOf(Math.max(...cnt))];
+    charts.push({ t: "Days worked by weekday", sub: `Most often called on ${top}s`,
+      draw: W => withFmt(n => `${n} day${n === 1 ? "" : "s"}`, n => Number.isInteger(n) ? String(n) : "", () => barChart(names, [{ name: "Days", color: "var(--worked)", values: cnt }], W, false)) });
+    const bySchool = {}; worked.forEach(x => { if (x.school) bySchool[x.school] = (bySchool[x.school] || 0) + x.pay; });
+    const items = Object.entries(bySchool).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([label, value]) => ({ label, value }));
+    if (items.length) charts.push({ t: "Earnings by school", sub: `${Object.keys(bySchool).length} school${Object.keys(bySchool).length > 1 ? "s" : ""} so far`, draw: W => hbarChart(items, W, "var(--worked)") });
+  }
+  // cumulative pace: this year vs earlier years, month by month from each year's start
+  const yrs = s.seasons.filter(x => x.start <= today), series = [];
+  const labels = months.map(m => new Date(m + "-15T12:00").toLocaleDateString(undefined, { month: "short" }));
+  yrs.forEach((x, i) => {
+    // line up years by calendar month (Oct with Oct), counting everything earned up to the end of that month
+    const ms = monthsBetween(x.start.slice(0, 7), x.end.slice(0, 7));
+    const upTo = m => Object.entries(S.work.days).reduce((a, [iso, d]) => a + (d.status === "worked" && iso >= x.start && iso <= x.end && iso.slice(0, 7) <= m ? +d.pay : 0), 0);
+    let prev = 0;
+    const vals = months.map(am => {
+      const m = ms.find(y => y.slice(5) === am.slice(5));          // same calendar month in that year
+      if (m) prev = Math.round(upTo(m < thisMonth ? m : thisMonth) * 100) / 100;
+      return prev;                                                  // months that year didn't cover hold flat
+    });
+    series.push({ name: x.name, color: slot(i), values: vals });
+  });
+  const cur = series.find(x => x.name === yr.name);
+  if (cur) {
+    let run = 0; const proj = months.map((m, k) => { run += byMonth("worked")[k] + byMonth("planned")[k]; return Math.round(run * 100) / 100; });
+    series.push({ name: "This year incl. scheduled", color: "var(--other)", values: proj });
+  }
+  const lines = series.filter(x => x.values.some(v => v > 0));
+  if (lines.length) charts.push({ t: "Cumulative earnings", sub: yrs.length > 1 ? "Each school year by calendar month, to compare pace" : "Earned so far, and where scheduled days take you", full: true,
+    draw: W => legendHTML(lines) + lineChart(labels, lines, W) });
+
+  box.innerHTML = charts.map((c, i) => `<div class="${c.full ? "full" : ""}" style="${c.full ? "grid-column:1 / -1" : ""}"><h3 style="font-size:14px">${c.t}</h3><p class="w-sub">${c.sub}</p><div class="w-body" data-wc="${i}"></div></div>`).join("");
+  charts.forEach((c, i) => { const el = $(`[data-wc="${i}"]`); el.innerHTML = c.draw(Math.max(240, Math.floor(el.clientWidth))); });
 }
 
 // ---------- day details ----------
